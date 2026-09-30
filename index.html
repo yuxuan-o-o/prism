@@ -177,11 +177,13 @@
     color: inherit; vertical-align: -1px;
   }
   #heart svg { display: block; transition: transform 0.2s; transform-origin: center; overflow: visible; }
-  #heart path { fill: none; stroke: currentColor; stroke-width: 1.7; transition: fill 0.3s, stroke 0.3s; }
-  /* Liked: the heart fills with light split by a prism. */
-  #heart.liked path { fill: url(#heart-spectrum); stroke: rgba(255, 255, 255, 0.9); }
-  #heart.liked svg { filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.55)); }
-  :root[data-theme="light"] #heart.liked svg { filter: drop-shadow(0 1px 2px rgba(60, 50, 40, 0.25)); }
+  #heart .outline { fill: none; stroke: currentColor; stroke-width: 1.7; transition: opacity 0.25s; }
+  #heart .glass { opacity: 0; transition: opacity 0.3s; }
+  /* Liked: the outline becomes a small block of frosted glass with a beam of split light inside. */
+  #heart.liked .outline { opacity: 0; }
+  #heart.liked .glass { opacity: 1; }
+  #heart.liked svg { filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35)); }
+  :root[data-theme="light"] #heart.liked svg { filter: drop-shadow(0 1px 2px rgba(60, 50, 40, 0.28)); }
   #heart.pop svg { animation: heartPop 0.35s ease; }
   #heart:hover svg { animation: heartSway 0.7s ease-in-out infinite; }
   @keyframes heartSway {
@@ -298,17 +300,35 @@
   <footer class="foot">
     made with
     <button id="heart" aria-label="like">
-      <svg width="13" height="13" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <svg width="15" height="15" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
         <defs>
-          <linearGradient id="heart-spectrum" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stop-color="#ffb3b3"/>
-            <stop offset="0.25" stop-color="#ffe9a8"/>
-            <stop offset="0.5" stop-color="#b8f0c8"/>
-            <stop offset="0.75" stop-color="#b3d9ff"/>
-            <stop offset="1" stop-color="#dcc6ff"/>
+          <path id="heart-shape" d="M2 9.1371C2 14 6.01943 16.5914 8.96173 18.9109C10 19.7294 11 20.5 12 20.5C13 20.5 14 19.7294 15.0383 18.9109C17.9806 16.5914 22 14 22 9.1371C22 4.27416 16.4998 0.825464 12 5.50063C7.50016 0.825464 2 4.27416 2 9.1371Z"/>
+          <clipPath id="heart-clip"><use href="#heart-shape"/></clipPath>
+          <linearGradient id="heart-body" x1="0.15" y1="0" x2="0.85" y2="1">
+            <stop offset="0" stop-color="#ffffff" stop-opacity="0.95"/>
+            <stop offset="0.45" stop-color="#c9c6c0" stop-opacity="0.85"/>
+            <stop offset="1" stop-color="#eeece8" stop-opacity="0.95"/>
+          </linearGradient>
+          <linearGradient id="heart-beam" x1="0" y1="0.3" x2="1" y2="0.7">
+            <stop offset="0" stop-color="#ffffff" stop-opacity="0"/>
+            <stop offset="0.3" stop-color="#ffffff" stop-opacity="0.9"/>
+            <stop offset="0.5" stop-color="#ffd6a8"/>
+            <stop offset="0.62" stop-color="#bff2c9"/>
+            <stop offset="0.74" stop-color="#b3d4ff"/>
+            <stop offset="0.86" stop-color="#d9c4ff"/>
+            <stop offset="1" stop-color="#d9c4ff" stop-opacity="0"/>
           </linearGradient>
         </defs>
-        <path d="M2 9.1371C2 14 6.01943 16.5914 8.96173 18.9109C10 19.7294 11 20.5 12 20.5C13 20.5 14 19.7294 15.0383 18.9109C17.9806 16.5914 22 14 22 9.1371C22 4.27416 16.4998 0.825464 12 5.50063C7.50016 0.825464 2 4.27416 2 9.1371Z"/>
+        <use class="outline" href="#heart-shape"/>
+        <g class="glass">
+          <use href="#heart-shape" fill="url(#heart-body)"/>
+          <g clip-path="url(#heart-clip)">
+            <path d="M1 7 L23 12 L23 15.5 L1 10.5 Z" fill="url(#heart-beam)" opacity="0.85"/>
+            <use href="#heart-shape" fill="none" stroke="#ffffff" stroke-width="3.2" opacity="0.7"/>
+            <path d="M5.2 9.4 C5.6 6.8 7.6 5.4 9.6 5.5" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"/>
+          </g>
+          <use href="#heart-shape" fill="none" stroke="rgba(90,84,76,0.35)" stroke-width="0.9"/>
+        </g>
       </svg>
     </button>
     by <a href="https://x.com/yuxuan_o_o" target="_blank" rel="noopener">Yuxuan</a> · AI
