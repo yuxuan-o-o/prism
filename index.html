@@ -60,8 +60,8 @@
   .main {
     min-height: 0;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 400px;
-    gap: 12px;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 10px;
   }
 
   .preview {
@@ -73,8 +73,8 @@
     display: flex;
   }
   .label {
-    font-size: 11px;
-    letter-spacing: 0.28em;
+    font-size: 10px;
+    letter-spacing: 0.26em;
     color: var(--muted);
     text-transform: uppercase;
   }
@@ -121,28 +121,28 @@
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
     scrollbar-width: none;
   }
   .side::-webkit-scrollbar { display: none; }
-  .card { background: var(--panel); border-radius: var(--radius); padding: 18px 16px 16px; }
-  .card > .label { display: block; margin-bottom: 16px; }
+  .card { background: var(--panel); border-radius: var(--radius); padding: 14px 14px 13px; }
+  .card > .label { display: block; margin-bottom: 11px; }
 
-  .seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 2px; margin-bottom: 14px; }
+  .seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 2px; margin-bottom: 10px; }
   .seg:last-child { margin-bottom: 0; }
-  .seg button { padding: 9px 4px; border-radius: 9px; color: var(--muted); font-size: 13px; white-space: nowrap; }
+  .seg button { padding: 7px 4px; border-radius: 8px; color: var(--muted); font-size: 12px; white-space: nowrap; }
   .seg button:hover { color: var(--text); }
   .seg button.on { background: var(--panel-2); color: var(--text); }
 
-  .row { margin-bottom: 16px; }
+  .row { margin-bottom: 10px; }
   .row:last-child { margin-bottom: 0; }
-  .row .head { display: flex; justify-content: space-between; margin-bottom: 8px; font-weight: 500; }
+  .row .head { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 12px; font-weight: 500; }
   .row .head output { color: var(--muted); font-weight: 400; font-variant-numeric: tabular-nums; }
 
   input[type=range] {
     -webkit-appearance: none; appearance: none;
     display: block;
-    width: 100%; height: 30px; margin: 0;
+    width: 100%; height: 22px; margin: 0;
     border-radius: 8px;
     background: linear-gradient(90deg, var(--fill) var(--p, 50%), #131313 var(--p, 50%));
     cursor: ew-resize;
@@ -150,19 +150,19 @@
   }
   input[type=range]::-webkit-slider-thumb {
     -webkit-appearance: none; appearance: none;
-    width: 10px; height: 30px;
+    width: 8px; height: 22px;
     border-radius: 5px;
     background: var(--thumb);
   }
   input[type=range]::-moz-range-thumb {
-    width: 10px; height: 30px;
+    width: 8px; height: 22px;
     border: 0; border-radius: 5px;
     background: var(--thumb);
   }
   input[type=range]:hover::-webkit-slider-thumb { background: #4a4a4a; }
 
-  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 16px; }
-  .pair button { padding: 10px; border-radius: 9px; background: var(--panel-2); color: var(--muted); font-size: 13px; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 10px; }
+  .pair button { padding: 7px; border-radius: 8px; background: var(--panel-2); color: var(--muted); font-size: 12px; }
   .pair button:hover { color: var(--text); }
   .pair button:active { transform: scale(0.98); }
 
@@ -197,13 +197,14 @@
     100% { transform: scale(1); }
   }
 
-  @media (max-width: 960px) {
+  @media (max-width: 900px) {
     html, body { height: auto; }
-    .app { height: auto; grid-template-rows: 72px auto auto; padding: 0 14px; }
-    .main { grid-template-columns: 1fr; }
-    .preview { height: 70vh; }
+    .app { height: auto; grid-template-rows: 64px auto auto; padding: 0 12px; }
+    .main { grid-template-columns: 1fr; gap: 10px; }
+    .preview { height: min(78vh, 100vw); padding: 40px 10px 10px; }
     .side { overflow: visible; }
-    .foot { padding: 18px 0; }
+    .foot { padding: 16px 0; }
+    .top .right { gap: 16px; }
   }
 </style>
 </head>
@@ -246,10 +247,9 @@
         <div class="seg" data-key="mode">
           <button data-val="p">Prism</button>
           <button data-val="s">Film</button>
-          <button data-val="mix">Mixed</button>
         </div>
         <div class="row"><div class="head"><span>Size</span><output></output></div>
-          <input type="range" data-key="size" min="10" max="160" step="1"></div>
+          <input type="range" data-key="size" min="10" max="100" step="1"></div>
       </div>
 
       <div class="card">
@@ -275,6 +275,10 @@
           <input type="range" data-key="count" min="1" max="90" step="1"></div>
         <div class="row"><div class="head"><span>Spacing</span><output></output></div>
           <input type="range" data-key="gap" min="30" max="220" step="1"></div>
+        <div class="seg" data-key="spin" style="margin-top: 12px">
+          <button data-val="on">Rotating</button>
+          <button data-val="off">Still</button>
+        </div>
       </div>
 
       <div class="card">
@@ -285,15 +289,6 @@
         </div>
       </div>
 
-      <div class="card">
-        <span class="label">Motion</span>
-        <div class="seg" data-key="spin">
-          <button data-val="on">Rotate</button>
-          <button data-val="off">Still</button>
-        </div>
-        <div class="row"><div class="head"><span>Speed</span><output></output></div>
-          <input type="range" data-key="speed" min="0" max="100" step="1"></div>
-      </div>
     </aside>
   </main>
 
@@ -361,7 +356,7 @@ const DEFAULTS = {
   src: 'beam', width: 260, bright: 100, disp: 50,
   mode: 'p', size: 38,
   lay: 'rings', ori: 'in', count: 18, gap: 92,
-  bg: 'wall', spin: 'on', speed: 35,
+  bg: 'wall', spin: 'on',
 };
 const S = { ...DEFAULTS };
 
@@ -1286,7 +1281,7 @@ handle.addEventListener('pointercancel', endDrag);
 // ---------- controls ----------
 const FORMAT = {
   width: v => v, bright: v => (v / 100).toFixed(2), disp: v => (v / 100).toFixed(2),
-  size: v => v, count: v => v, gap: v => v, speed: v => (v / 100).toFixed(2),
+  size: v => v, count: v => v, gap: v => v,
 };
 function syncUI() {
   $$('.seg').forEach(seg => {
@@ -1374,8 +1369,8 @@ function frame(now) {
 function tick(now) {
   if (S.spin === 'on' && !dragging && !turning) {
     const dt = lastT ? Math.min(60, now - lastT) : 16;
-    theta += dt * 0.0003 * (S.speed / 100);
-    if (S.speed > 0) dirty = true;
+    theta += dt * 0.0001;
+    dirty = true;
   }
   lastT = now;
 
