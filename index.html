@@ -889,7 +889,7 @@ const glassMat = new THREE.ShaderMaterial({
     uDepth: { value: PRISM_DEPTH },
     uIor: { value: 1.58 },
     uAbsorb: { value: new THREE.Vector3(0.34, 0.33, 0.30) },
-    uFrost: { value: 2.2 },
+    uFrost: { value: 0.7 },
     uEnvExposure: { value: 3.0 },
     uReflection: { value: 2.0 },
     uPlanes: { value: [
@@ -1010,6 +1010,54 @@ const glassMat = new THREE.ShaderMaterial({
       return textureLod(tScene, clamp(uv, vec2(0.002), vec2(0.998)), lod).rgb;
     }
 
+    // Distance from a point on the surface to the nearest other face: small
+    // values are the solid's inner edges, seen through the glass.
+    float edgeDistance(vec3 p, vec3 n) {
+      float m = 10.0;
+      if (abs(n.z) < 0.5) m = min(p.z, uDepth - p.z);
+      for (int i = 0; i < 4; i++) {
+        if (i >= uPlaneCount) break;
+        vec3 pl = uPlanes[i];
+        if (dot(pl.xy, n.xy) > 0.99) continue;
+        m = min(m, pl.z - dot(pl.xy, p.xy));
+      }
+      return m;
+    }
+
+    // Follow one refracted ray through the solid, bouncing on total internal
+    // reflection, until it leaves; returns what it sees.
+    vec3 traceGlass(vec3 N, vec3 I, float ior, float lod, out float travelled, out float edge) {
+      mat3 toWorld = mat3(vM0, vM1, vM2);
+      vec3 d = refract(I, N, 1.0 / ior);
+      vec3 p = vLocalPos + d * 0.001;
+      travelled = 0.0;
+      edge = 0.0;
+      bool escaped = false;
+      for (int i = 0; i < 3; i++) {
+        float t; vec3 n;
+        nextSurface(p, d, t, n);
+        if (t > 50.0) break;
+        p += d * t;
+        travelled += t;
+        float ed = edgeDistance(p, n) / 0.05;
+        edge = max(edge, exp(-ed * ed));
+        vec3 o = refract(d, -n, ior);
+        if (dot(o, o) > 0.0) { d = normalize(o); escaped = true; break; }
+        d = reflect(d, n);
+        p += d * 0.001;
+      }
+      if (escaped && d.z < -0.02) {
+        float t = min(p.z / -d.z, 4.0);
+        return sceneAt(p + d * t, lod);
+      }
+      if (escaped) {
+        return mix(sceneAt(p, lod + 1.0), studio(normalize(toWorld * d)) * uEnvExposure, 0.35);
+      }
+      return sceneAt(p, lod + 1.0);
+    }
+
+    float fresnelMix(float f) { return 0.35 + 0.65 * clamp(f * 6.0, 0.0, 1.0); }
+
     float band(float d, float center, float width) {
       float c = (d - center) / max(width, 0.0001);
       return exp(-c * c);
@@ -1030,33 +1078,14 @@ const glassMat = new THREE.ShaderMaterial({
       float f0 = pow((uIor - 1.0) / (uIor + 1.0), 2.0);
       float fresnel = f0 + (1.0 - f0) * pow(1.0 - facing, 5.0);
 
-      // Follow the refracted ray through the solid, bouncing on total
-      // internal reflection, until it leaves.
-      vec3 d = refract(I, N, 1.0 / uIor);
-      vec3 p = vLocalPos + d * 0.001;
-      float travelled = 0.0;
-      bool escaped = false;
-      for (int i = 0; i < 3; i++) {
-        float t; vec3 n;
-        nextSurface(p, d, t, n);
-        if (t > 50.0) break;
-        p += d * t;
-        travelled += t;
-        vec3 o = refract(d, -n, uIor);
-        if (dot(o, o) > 0.0) { d = normalize(o); escaped = true; break; }
-        d = reflect(d, n);
-        p += d * 0.001;
-      }
-
-      vec3 background;
-      if (escaped && d.z < -0.02) {
-        float t = min(p.z / -d.z, 4.0);
-        background = sceneAt(p + d * t, uFrost);
-      } else if (escaped) {
-        background = mix(sceneAt(p, uFrost + 1.0), studio(normalize(toWorld * d)) * uEnvExposure, 0.35);
-      } else {
-        background = sceneAt(p, uFrost + 1.0);
-      }
+      // Three traces with slightly different indices: the colour fringes of
+      // real glass at its edges.
+      float travelled, tr, tb, edge, er, eb;
+      vec3 bgG = traceGlass(N, I, uIor, uFrost, travelled, edge);
+      vec3 bgR = traceGlass(N, I, uIor * 0.988, uFrost, tr, er);
+      vec3 bgB = traceGlass(N, I, uIor * 1.012, uFrost, tb, eb);
+      vec3 background = vec3(bgR.r, bgG.g, bgB.b);
+      vec3 innerEdge = vec3(er, edge, eb);
 
       vec3 transmitted = background * exp(-uAbsorb * travelled);
       vec3 sheen = mix(vec3(1.0), thinFilm(facing) * 1.4, uIridescence);
@@ -1093,7 +1122,15 @@ const glassMat = new THREE.ShaderMaterial({
       vec3 warmRim = vec3(1.0, 0.91, 0.78) * baseRim * 0.28;
 
       coverage *= uAccent;
-      vec3 col = glass * (1.0 - coverage) + tone * coverage + (neutralRim + warmRim) * uAccent;
+      // Inner edges and a glossy key-light highlight on the polished faces.
+      vec3 worldN = normalize(toWorld * N);
+      vec3 worldPos = toWorld * vLocalPos + vT;
+      vec3 worldV = normalize(cameraPosition - worldPos);
+      vec3 keyDir = normalize(vec3(-0.42, 0.62, 0.78));
+      vec3 halfDir = normalize(keyDir + worldV);
+      float spec = pow(max(dot(worldN, halfDir), 0.0), 110.0) * 0.55 * fresnelMix(fresnel);
+      vec3 col = glass * (1.0 - coverage) + tone * coverage + (neutralRim + warmRim) * uAccent
+        + innerEdge * 0.32 * uAccent + vec3(spec);
       gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);
       #include <colorspace_fragment>
     }
@@ -1113,7 +1150,7 @@ filmMat.uniforms.uPlanes.value = [
   new THREE.Vector3(-1, 0, 1), new THREE.Vector3(0, -1, FILM_HALF) ];
 filmMat.uniforms.uPlaneCount.value = 4;
 filmMat.uniforms.uAbsorb.value = new THREE.Vector3(0.06, 0.05, 0.04);
-filmMat.uniforms.uFrost.value = 0.8;
+filmMat.uniforms.uFrost.value = 0.4;
 filmMat.uniforms.uBandScale.value = 0.3;
 filmMat.uniforms.uAccent.value = 0.55;
 filmMat.uniforms.uIridescence.value = 1.0;
