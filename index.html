@@ -102,6 +102,8 @@
     touch-action: none;
   }
   #src:active { cursor: grabbing; }
+  #stage.dark #src { border-color: rgba(255, 255, 255, 0.8); background: rgba(0, 0, 0, 0.3); }
+  #stage.dark #src::after { background: rgba(255, 255, 255, 0.85); }
   #src::after {
     content: "";
     position: absolute; inset: 8px;
@@ -286,6 +288,7 @@
         <div class="seg" data-key="bg">
           <button data-val="wall">White wall</button>
           <button data-val="trees">Tree shade</button>
+          <button data-val="dark">Dark room</button>
         </div>
       </div>
     </aside>
@@ -705,6 +708,7 @@ const wallMat = new THREE.ShaderMaterial({
     tShadow: { value: shadowTex },
     uTime: { value: 0 },
     uTrees: { value: 0 },
+    uDark: { value: 0 },
     uAspect: { value: 1 },
   },
   vertexShader: /* glsl */`
@@ -721,6 +725,7 @@ const wallMat = new THREE.ShaderMaterial({
     uniform sampler2D tShadow;
     uniform float uTime;
     uniform float uTrees;
+    uniform float uDark;
     uniform float uAspect;
 
     float hash(vec2 p) {
@@ -770,12 +775,17 @@ const wallMat = new THREE.ShaderMaterial({
         shade = mix(vec3(0.63, 0.67, 0.76), vec3(1.0), sun);
       }
 
-      vec3 base = wall * vig * shade * mix(1.0, castShadow, 0.9) + tex;
-
-      // Coloured light tints the wall; white light lifts it.
-      float mx = max(light.r, max(light.g, light.b));
-      vec3 col = base * (1.0 - 0.85 * (mx - light)) + (1.0 - base) * light;
-      col = clamp(col, 0.0, 1.0);
+      vec3 col;
+      if (uDark > 0.5) {
+        // Dark room: a near-black wall, light simply adds to it.
+        vec3 base = vec3(0.030, 0.030, 0.036) * vig + tex * 0.35;
+        col = clamp(base + light * 0.8, 0.0, 1.0);
+      } else {
+        vec3 base = wall * vig * shade * mix(1.0, castShadow, 0.9) + tex;
+        // Coloured light tints the wall; white light lifts it.
+        float mx = max(light.r, max(light.g, light.b));
+        col = clamp(base * (1.0 - 0.85 * (mx - light)) + (1.0 - base) * light, 0.0, 1.0);
+      }
 
       gl_FragColor = vec4(pow(col, vec3(2.2)), 1.0);
       #include <colorspace_fragment>
@@ -1293,6 +1303,8 @@ function syncUI() {
     $('output', inp.parentElement).textContent = FORMAT[k](S[k]);
   });
   wallMat.uniforms.uTrees.value = S.bg === 'trees' ? 1 : 0;
+  wallMat.uniforms.uDark.value = S.bg === 'dark' ? 1 : 0;
+  stage.classList.toggle('dark', S.bg === 'dark');
 }
 function set(key, val) {
   S[key] = val;
