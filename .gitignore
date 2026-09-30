@@ -1,0 +1,12 @@
+.DS_Store
+.claude/
+node_modules/
+
+# Screen recordings and other media kept next to the project
+*.mov
+*.mp4
+*.m4v
+*.webm
+*.gif
+*.zip
+recordings/

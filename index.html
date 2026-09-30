@@ -1,0 +1,1362 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>prism</title>
+<style>
+  :root {
+    --bg: #070707;
+    --panel: #101010;
+    --panel-2: #161616;
+    --line: #1c1c1c;
+    --text: #ededed;
+    --muted: #7a7a7a;
+    --dim: #4a4a4a;
+    --thumb: #3b3b3b;
+    --fill: #1d1d1d;
+    --stage: #0b0b0b;
+    --radius: 16px;
+  }
+  :root[data-theme="light"] {
+    --bg: #f4f3f1;
+    --panel: #ffffff;
+    --panel-2: #efeeeb;
+    --line: #e6e4e0;
+    --text: #17171a;
+    --muted: #8a8884;
+    --dim: #c9c7c2;
+    --thumb: #c4c1bb;
+    --fill: #e8e6e2;
+    --stage: #e9e7e3;
+  }
+  :root[data-theme="light"] input[type=range] { background: linear-gradient(90deg, var(--fill) var(--p, 50%), #f3f2ef var(--p, 50%)); }
+  :root[data-theme="light"] input[type=range]:hover::-webkit-slider-thumb { background: #b2afa8; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.4 Inter, -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+
+  .app {
+    max-width: 1680px;
+    height: 100%;
+    margin: 0 auto;
+    padding: 0 24px;
+    display: grid;
+    grid-template-rows: 80px minmax(0, 1fr) 56px;
+  }
+
+  .top { display: flex; align-items: center; gap: 18px; }
+  .logo { font: 500 22px/1 ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: -0.02em; }
+  .top .right { margin-left: auto; display: flex; gap: 22px; color: var(--muted); font-size: 13px; }
+  .top .right button:hover { color: var(--text); }
+
+  .main {
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 400px;
+    gap: 12px;
+  }
+
+  .preview {
+    position: relative;
+    min-height: 0;
+    background: var(--panel);
+    border-radius: var(--radius);
+    padding: 44px 16px 16px;
+    display: flex;
+  }
+  .label {
+    font-size: 11px;
+    letter-spacing: 0.28em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+  .preview > .label { position: absolute; top: 18px; left: 18px; }
+  #stage {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--stage);
+    touch-action: none;
+  }
+  #stage { cursor: grab; }
+  #stage canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+  #src {
+    position: absolute;
+    width: 26px; height: 26px;
+    margin: -13px 0 0 -13px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(40, 36, 32, 0.75);
+    background: rgba(255, 255, 255, 0.35);
+    cursor: grab;
+    touch-action: none;
+  }
+  #src:active { cursor: grabbing; }
+  #src::after {
+    content: "";
+    position: absolute; inset: 8px;
+    border-radius: 50%;
+    background: rgba(40, 36, 32, 0.75);
+  }
+  #err {
+    position: absolute; inset: 0;
+    display: none;
+    align-items: center; justify-content: center;
+    padding: 40px; text-align: center;
+    color: var(--muted);
+  }
+
+  .side {
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    scrollbar-width: none;
+  }
+  .side::-webkit-scrollbar { display: none; }
+  .card { background: var(--panel); border-radius: var(--radius); padding: 18px 16px 16px; }
+  .card > .label { display: block; margin-bottom: 16px; }
+
+  .seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 2px; margin-bottom: 14px; }
+  .seg:last-child { margin-bottom: 0; }
+  .seg button { padding: 9px 4px; border-radius: 9px; color: var(--muted); font-size: 13px; white-space: nowrap; }
+  .seg button:hover { color: var(--text); }
+  .seg button.on { background: var(--panel-2); color: var(--text); }
+
+  .row { margin-bottom: 16px; }
+  .row:last-child { margin-bottom: 0; }
+  .row .head { display: flex; justify-content: space-between; margin-bottom: 8px; font-weight: 500; }
+  .row .head output { color: var(--muted); font-weight: 400; font-variant-numeric: tabular-nums; }
+
+  input[type=range] {
+    -webkit-appearance: none; appearance: none;
+    display: block;
+    width: 100%; height: 30px; margin: 0;
+    border-radius: 8px;
+    background: linear-gradient(90deg, var(--fill) var(--p, 50%), #131313 var(--p, 50%));
+    cursor: ew-resize;
+    outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 10px; height: 30px;
+    border-radius: 5px;
+    background: var(--thumb);
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 10px; height: 30px;
+    border: 0; border-radius: 5px;
+    background: var(--thumb);
+  }
+  input[type=range]:hover::-webkit-slider-thumb { background: #4a4a4a; }
+
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 16px; }
+  .pair button { padding: 10px; border-radius: 9px; background: var(--panel-2); color: var(--muted); font-size: 13px; }
+  .pair button:hover { color: var(--text); }
+  .pair button:active { transform: scale(0.98); }
+
+  .foot {
+    display: flex; align-items: center; justify-content: center; gap: 5px;
+    color: var(--muted); font-size: 12px; letter-spacing: 0.08em; user-select: none;
+  }
+  .foot a { color: inherit; text-decoration: none; transition: color 0.2s; }
+  .foot a:hover { color: var(--text); }
+  #heart {
+    display: inline-flex; align-items: center; padding: 0 2px; margin: 0 1px;
+    color: inherit; vertical-align: -1px;
+  }
+  #heart svg { display: block; transition: transform 0.2s; transform-origin: center; overflow: visible; }
+  #heart path { fill: none; stroke: currentColor; stroke-width: 1.7; transition: fill 0.3s, stroke 0.3s; }
+  /* Liked: the heart fills with light split by a prism. */
+  #heart.liked path { fill: url(#heart-spectrum); stroke: rgba(255, 255, 255, 0.9); }
+  #heart.liked svg { filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.55)); }
+  :root[data-theme="light"] #heart.liked svg { filter: drop-shadow(0 1px 2px rgba(60, 50, 40, 0.25)); }
+  #heart.pop svg { animation: heartPop 0.35s ease; }
+  #heart:hover svg { animation: heartSway 0.7s ease-in-out infinite; }
+  @keyframes heartSway {
+    0%, 100% { transform: rotate(0deg) scale(1); }
+    25% { transform: rotate(-11deg) scale(1.12); }
+    75% { transform: rotate(11deg) scale(1.12); }
+  }
+  @keyframes heartPop {
+    0% { transform: scale(1); }
+    45% { transform: scale(1.4); }
+    100% { transform: scale(1); }
+  }
+
+  @media (max-width: 960px) {
+    html, body { height: auto; }
+    .app { height: auto; grid-template-rows: 72px auto auto; padding: 0 14px; }
+    .main { grid-template-columns: 1fr; }
+    .preview { height: 70vh; }
+    .side { overflow: visible; }
+    .foot { padding: 18px 0; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="logo">prism</div>
+    <div class="right">
+      <button id="reset">↺ Reset</button>
+      <button id="theme" title="Switch light / dark interface">◐ Theme</button>
+    </div>
+  </header>
+
+  <main class="main">
+    <section class="preview">
+      <span class="label">Preview</span>
+      <div id="stage">
+        <div id="src" title="Drag to move the light"></div>
+        <div id="err"></div>
+      </div>
+    </section>
+
+    <aside class="side">
+      <div class="card">
+        <span class="label">Light</span>
+        <div class="seg" data-key="src">
+          <button data-val="beam">Beam</button>
+          <button data-val="point">Point</button>
+        </div>
+        <div class="row"><div class="head"><span>Width</span><output></output></div>
+          <input type="range" data-key="width" min="10" max="700" step="5"></div>
+        <div class="row"><div class="head"><span>Brightness</span><output></output></div>
+          <input type="range" data-key="bright" min="20" max="300" step="5"></div>
+        <div class="row"><div class="head"><span>Dispersion</span><output></output></div>
+          <input type="range" data-key="disp" min="0" max="100" step="1"></div>
+      </div>
+
+      <div class="card">
+        <span class="label">Element</span>
+        <div class="seg" data-key="mode">
+          <button data-val="p">Prism</button>
+          <button data-val="s">Film</button>
+          <button data-val="mix">Mixed</button>
+        </div>
+        <div class="row"><div class="head"><span>Size</span><output></output></div>
+          <input type="range" data-key="size" min="10" max="160" step="1"></div>
+      </div>
+
+      <div class="card">
+        <span class="label">Pattern</span>
+        <div class="seg" data-key="lay">
+          <button data-val="rings">Rings</button>
+          <button data-val="ring">Circle</button>
+          <button data-val="spiral">Spiral</button>
+          <button data-val="grid">Grid</button>
+          <button data-val="hex">Hex</button>
+        </div>
+        <div class="seg" data-key="ori">
+          <button data-val="in">Inward</button>
+          <button data-val="out">Outward</button>
+          <button data-val="same">Aligned</button>
+          <button data-val="alt">Alternate</button>
+        </div>
+        <div class="pair">
+          <button id="ring-less">− Remove ring</button>
+          <button id="ring-more">+ Add ring</button>
+        </div>
+        <div class="row"><div class="head"><span>Count</span><output></output></div>
+          <input type="range" data-key="count" min="1" max="90" step="1"></div>
+        <div class="row"><div class="head"><span>Spacing</span><output></output></div>
+          <input type="range" data-key="gap" min="30" max="220" step="1"></div>
+      </div>
+
+      <div class="card">
+        <span class="label">Surface</span>
+        <div class="seg" data-key="bg">
+          <button data-val="wall">White wall</button>
+          <button data-val="trees">Tree shade</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <span class="label">Motion</span>
+        <div class="seg" data-key="spin">
+          <button data-val="on">Rotate</button>
+          <button data-val="off">Still</button>
+        </div>
+        <div class="row"><div class="head"><span>Speed</span><output></output></div>
+          <input type="range" data-key="speed" min="0" max="100" step="1"></div>
+      </div>
+    </aside>
+  </main>
+
+  <footer class="foot">
+    made with
+    <button id="heart" aria-label="like">
+      <svg width="13" height="13" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="heart-spectrum" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#ffb3b3"/>
+            <stop offset="0.25" stop-color="#ffe9a8"/>
+            <stop offset="0.5" stop-color="#b8f0c8"/>
+            <stop offset="0.75" stop-color="#b3d9ff"/>
+            <stop offset="1" stop-color="#dcc6ff"/>
+          </linearGradient>
+        </defs>
+        <path d="M2 9.1371C2 14 6.01943 16.5914 8.96173 18.9109C10 19.7294 11 20.5 12 20.5C13 20.5 14 19.7294 15.0383 18.9109C17.9806 16.5914 22 14 22 9.1371C22 4.27416 16.4998 0.825464 12 5.50063C7.50016 0.825464 2 4.27416 2 9.1371Z"/>
+      </svg>
+    </button>
+    by <a href="https://x.com/yuxuan_o_o" target="_blank" rel="noopener">Yuxuan</a> · AI
+  </footer>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+} }
+</script>
+<script>
+  window.addEventListener('error', function (e) {
+    var el = document.getElementById('err');
+    if (!el) return;
+    el.style.display = 'flex';
+    el.textContent = 'Could not start: ' + (e.message || 'three.js failed to load (needs internet for the CDN).');
+  }, true);
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+
+// ---------- state ----------
+const DEFAULTS = {
+  src: 'beam', width: 260, bright: 100, disp: 50,
+  mode: 'p', size: 38,
+  lay: 'rings', ori: 'in', count: 18, gap: 92,
+  bg: 'wall', spin: 'on', speed: 35,
+};
+const S = { ...DEFAULTS };
+
+// Simulation space: fixed height, width follows the stage aspect.
+const SH = 760;
+let SW = 1100, CX = SW / 2, CY = SH / 2;
+const MAXN = 90;
+
+let aim = 0, theta = 0, lastT = 0, quality = 1, dirty = true;
+const source = { x: 46, y: SH / 2 };
+let base = [], born = [], items = [], edges = [];
+
+// ---------- spectrum ----------
+const NW = 24, lams = [], cols = [], us = [];
+function wavelengthRGB(l) {
+  let r = 0, g = 0, b = 0;
+  if (l < 440) { r = -(l - 440) / 60; b = 1; }
+  else if (l < 490) { g = (l - 440) / 50; b = 1; }
+  else if (l < 510) { g = 1; b = -(l - 510) / 20; }
+  else if (l < 580) { r = (l - 510) / 70; g = 1; }
+  else if (l < 645) { r = 1; g = -(l - 645) / 65; }
+  else { r = 1; }
+  let f = 1;
+  if (l < 420) f = 0.3 + 0.7 * (l - 380) / 40;
+  else if (l > 680) f = 0.3 + 0.7 * (780 - l) / 100;
+  return [r * f, g * f, b * f];
+}
+const rawCols = [], sum = [0, 0, 0];
+for (let i = 0; i < NW; i++) {
+  const l = 690 - (280 * i) / (NW - 1);
+  lams.push(l);
+  const c = wavelengthRGB(l);
+  rawCols.push(c);
+  sum[0] += c[0]; sum[1] += c[1]; sum[2] += c[2];
+  us.push((1 / (l * l) - 1 / (700 * 700)) / (1 / (400 * 400) - 1 / (700 * 700)));
+}
+// Balance channels so that all wavelengths together add up to white.
+const SUM = Math.min(sum[0], sum[1], sum[2]);
+for (let i = 0; i < NW; i++) {
+  const c = rawCols[i];
+  cols.push(`rgb(${Math.round(255 * c[0] * SUM / sum[0])},${Math.round(255 * c[1] * SUM / sum[1])},${Math.round(255 * c[2] * SUM / sum[2])})`);
+}
+
+// ---------- layout ----------
+function ringCap(k, sp) {
+  const R = sp * (1 + k * 1.07);
+  return [R, Math.max(3, Math.floor(2 * Math.PI * R / (sp * 0.95)))];
+}
+function ringStep(n, sp, dir) {
+  let left = n, k = 0, last = null;
+  while (left > 0) {
+    const cap = ringCap(k, sp)[1], m = Math.min(cap, left);
+    last = [cap, m]; left -= m; k++;
+  }
+  if (dir > 0) {
+    if (last && last[1] < last[0]) return n + last[0] - last[1];
+    return n + ringCap(k, sp)[1];
+  }
+  return Math.max(1, n - (last ? last[1] : 0));
+}
+function layout() {
+  const n = S.count, sp = S.gap, L = S.lay, P = [];
+  if (n === 1) {
+    P.push([0, 0]);
+  } else if (L === 'rings') {
+    let left = n, k = 0;
+    while (left > 0) {
+      const [R, cap] = ringCap(k, sp), m = Math.min(cap, left);
+      for (let i = 0; i < m; i++) {
+        const a = -Math.PI / 2 + i / m * Math.PI * 2 + (k % 2 ? Math.PI / m : 0);
+        P.push([Math.cos(a) * R, Math.sin(a) * R]);
+      }
+      left -= m; k++;
+    }
+  } else if (L === 'ring') {
+    const R = Math.max(sp, n * sp * 0.9 / (2 * Math.PI));
+    for (let i = 0; i < n; i++) {
+      const a = -Math.PI / 2 + i / n * Math.PI * 2;
+      P.push([Math.cos(a) * R, Math.sin(a) * R]);
+    }
+  } else if (L === 'spiral') {
+    const g = Math.PI * (3 - Math.sqrt(5));
+    for (let i = 0; i < n; i++) {
+      const R = sp * 0.6 * Math.sqrt(i + 0.6), a = i * g;
+      P.push([Math.cos(a) * R, Math.sin(a) * R]);
+    }
+  } else {
+    const hex = L === 'hex', s = sp * 1.05, sy = hex ? s * 0.866 : s;
+    const c = Math.max(1, Math.ceil(Math.sqrt(n * SW / SH))), rows = Math.ceil(n / c);
+    for (let i = 0; i < n; i++) {
+      const r = Math.floor(i / c), k = i % c, inRow = r === rows - 1 ? n - c * (rows - 1) : c;
+      P.push([(k - (inRow - 1) / 2) * s + (hex && r % 2 ? s / 2 : 0) - (hex ? s / 4 : 0), (r - (rows - 1) / 2) * sy]);
+    }
+  }
+  const now = performance.now();
+  if (born.length > P.length) born.length = P.length;
+  while (born.length < P.length) born.push(base.length ? now + (born.length - base.length) * 18 : 0);
+  base = P;
+  dirty = true;
+}
+
+function place(now) {
+  const ct = Math.cos(theta), sn = Math.sin(theta);
+  items = []; edges = [];
+  let popping = false;
+  base.forEach((b, i) => {
+    let sc = (now - born[i]) / 520;
+    if (sc < 1) popping = true;
+    if (sc <= 0.02) return;
+    if (sc > 1) sc = 1;
+    const e = sc - 1;
+    sc = 1 + 2.2 * e * e * e + 1.2 * e * e;
+    const x = CX + b[0] * ct - b[1] * sn, y = CY + b[0] * sn + b[1] * ct;
+    const type = S.mode === 'mix' ? (i % 2 ? 's' : 'p') : S.mode;
+    const centered = Math.abs(b[0]) < 0.01 && Math.abs(b[1]) < 0.01;
+    const ang = centered ? -Math.PI / 2 + theta : Math.atan2(CY - y, CX - x);
+    let rot;
+    if (type === 'p') {
+      rot = S.ori === 'in' ? ang : S.ori === 'out' ? ang + Math.PI
+        : S.ori === 'same' ? -Math.PI / 2 + theta : (i % 2 ? Math.PI / 2 : -Math.PI / 2) + theta;
+    } else {
+      rot = S.ori === 'in' ? ang + Math.PI / 2 : S.ori === 'out' ? ang
+        : S.ori === 'same' ? Math.PI / 2 + theta : (i % 2 ? Math.PI / 4 : -Math.PI / 4) + theta;
+    }
+    items.push({ x, y, r: Math.max(2, S.size * sc), rot, type });
+  });
+  for (const it of items) {
+    if (it.type === 'p') {
+      const v = [];
+      for (let k = 0; k < 3; k++) {
+        const a = it.rot + k * Math.PI * 2 / 3;
+        v.push([it.x + Math.cos(a) * it.r, it.y + Math.sin(a) * it.r]);
+      }
+      it.v = v;
+      for (let k = 0; k < 3; k++) {
+        const a = v[k], b = v[(k + 1) % 3];
+        const ex = b[0] - a[0], ey = b[1] - a[1], L = Math.hypot(ex, ey);
+        let nx = ey / L, ny = -ex / L;
+        const mx = (a[0] + b[0]) / 2 - it.x, my = (a[1] + b[1]) / 2 - it.y;
+        if (nx * mx + ny * my < 0) { nx = -nx; ny = -ny; }
+        edges.push({ x1: a[0], y1: a[1], ex, ey, nx, ny, tx: ex / L, ty: ey / L, type: 'p' });
+      }
+    } else {
+      const cx = Math.cos(it.rot), sy = Math.sin(it.rot);
+      const a = [it.x - cx * it.r, it.y - sy * it.r], b = [it.x + cx * it.r, it.y + sy * it.r];
+      it.v = [a, b];
+      edges.push({ x1: a[0], y1: a[1], ex: b[0] - a[0], ey: b[1] - a[1], nx: -sy, ny: cx, tx: cx, ty: sy, type: 's' });
+    }
+  }
+  return popping;
+}
+
+// ---------- light: 2D spectral ray trace ----------
+const lightCv = document.createElement('canvas');
+const glowCv = document.createElement('canvas');
+const shadowCv = document.createElement('canvas');
+const lx = lightCv.getContext('2d');
+const gx = glowCv.getContext('2d');
+const sx = shadowCv.getContext('2d');
+const SHADOW_SCALE = 0.5;
+
+function trace() {
+  lx.setTransform(1, 0, 0, 1, 0, 0);
+  lx.globalCompositeOperation = 'source-over';
+  lx.globalAlpha = 1;
+  lx.fillStyle = '#000';
+  lx.fillRect(0, 0, SW, SH);
+  lx.globalCompositeOperation = 'lighter';
+  const lw = 1.8;
+  lx.lineWidth = lw;
+  lx.lineCap = 'butt';
+
+  const point = S.src === 'point';
+  const disp = S.disp / 100, bright = S.bright / 100, bw = S.width;
+  const hasFilm = edges.some(e => e.type === 's');
+  const rays = [];
+  let cover;
+  if (point) {
+    const NR = Math.round((hasFilm ? 150 : 280) * quality);
+    for (let i = 0; i < NR; i++) {
+      const a = (i + 0.37) / NR * Math.PI * 2;
+      rays.push([source.x, source.y, Math.cos(a), Math.sin(a), 1]);
+    }
+    cover = NR * lw / (2 * Math.PI * 120);
+  } else {
+    const NR = Math.round(Math.max(30, Math.min(hasFilm ? 130 : 240, bw * 0.9)) * quality);
+    const dx = Math.cos(aim), dy = Math.sin(aim);
+    for (let i = 0; i < NR; i++) {
+      const f = (i + 0.5) / NR - 0.5, o = f * bw;
+      // Gaussian profile: soft beam edges instead of a hard-edged slab.
+      rays.push([source.x - dy * o, source.y + dx * o, dx, dy, 1.35 * Math.exp(-9 * f * f)]);
+    }
+    cover = Math.max(1, NR * lw / bw);
+  }
+  const aBase = bright * 0.42 / (cover * SUM);
+  const grating = 2600 - 1500 * disp, cut = 0.05, CHUNK = 120, FADE = 900, FAR = 1500;
+  let budget = 160000;
+  const ne = edges.length;
+
+  for (let wi = 0; wi < NW; wi++) {
+    lx.strokeStyle = cols[wi];
+    const n = 1.5 + (0.02 + 0.16 * disp) * us[wi], lam = lams[wi];
+    for (let ri = 0; ri < rays.length; ri++) {
+      const r0 = rays[ri];
+      const stack = [[r0[0], r0[1], r0[2], r0[3], r0[4], 0, -1, 0]];
+      while (stack.length && budget > 0) {
+        const r = stack.pop();
+        const ox = r[0], oy = r[1], dx = r[2], dy = r[3], I = r[4], depth = r[5], last = r[6], dist = r[7];
+        let bt = 1e9, bi = -1;
+        for (let i = 0; i < ne; i++) {
+          if (i === last) continue;
+          const e = edges[i];
+          const den = dx * e.ey - dy * e.ex;
+          if (den > -1e-9 && den < 1e-9) continue;
+          const wx = e.x1 - ox, wy = e.y1 - oy;
+          const t = (wx * e.ey - wy * e.ex) / den;
+          if (t < 0.01 || t >= bt) continue;
+          const u = (wx * dy - wy * dx) / den;
+          if (u < 0 || u > 1) continue;
+          bt = t; bi = i;
+        }
+        const tt = bi < 0 ? FAR : bt, px = ox + dx * tt, py = oy + dy * tt;
+        const nc = Math.max(1, Math.ceil(tt / CHUNK));
+        for (let c = 0; c < nc; c++) {
+          const t0 = tt * c / nc, t1 = tt * (c + 1) / nc;
+          const mid = dist + (t0 + t1) / 2;
+          // Ease in over the first stretch so the beam has no hard starting edge.
+          const al = I * aBase * Math.exp(-mid / FADE) * Math.min(1, 0.15 + mid / 140);
+          if (al < 0.003) break;
+          const x0 = ox + dx * t0, y0 = oy + dy * t0;
+          if ((x0 < -20 && dx < 0) || (x0 > SW + 20 && dx > 0) || (y0 < -20 && dy < 0) || (y0 > SH + 20 && dy > 0)) break;
+          lx.globalAlpha = Math.min(1, al);
+          lx.beginPath();
+          lx.moveTo(x0, y0);
+          lx.lineTo(ox + dx * t1, oy + dy * t1);
+          lx.stroke();
+          budget--;
+        }
+        if (bi < 0 || depth >= 14) continue;
+        const nd = dist + tt;
+        const e = edges[bi];
+        let nx = e.nx, ny = e.ny, c = dx * nx + dy * ny;
+        if (e.type === 'p') {
+          let n1 = 1, n2 = n;
+          if (c > 0) { nx = -nx; ny = -ny; n1 = n; n2 = 1; } else { c = -c; }
+          const eta = n1 / n2, k = 1 - eta * eta * (1 - c * c);
+          const rx = dx + 2 * c * nx, ry = dy + 2 * c * ny;
+          if (k < 0) {
+            stack.push([px, py, rx, ry, I * 0.98, depth + 1, bi, nd]);
+          } else {
+            const ct = Math.sqrt(k), R0 = Math.pow((n1 - n2) / (n1 + n2), 2);
+            const cc = n1 > n2 ? ct : c, R = R0 + (1 - R0) * Math.pow(1 - cc, 5);
+            if (I * R > cut) stack.push([px, py, rx, ry, I * R, depth + 1, bi, nd]);
+            if (I * (1 - R) > cut) {
+              const f = eta * c - ct;
+              stack.push([px, py, eta * dx + f * nx, eta * dy + f * ny, I * (1 - R), depth + 1, bi, nd]);
+            }
+          }
+        } else {
+          if (c < 0) { nx = -nx; ny = -ny; }
+          const s0 = dx * e.tx + dy * e.ty;
+          for (let m = -1; m <= 1; m++) {
+            const s = s0 + m * lam / grating;
+            if (s <= -1 || s >= 1) continue;
+            const w = Math.sqrt(1 - s * s), Im = I * (m === 0 ? 0.36 : 0.32);
+            if (Im > cut) stack.push([px, py, e.tx * s + nx * w, e.ty * s + ny * w, Im, depth + 1, bi, nd]);
+          }
+        }
+      }
+    }
+  }
+
+  gx.globalCompositeOperation = 'source-over';
+  gx.globalAlpha = 1;
+  gx.filter = 'none';
+  gx.fillStyle = '#000';
+  gx.fillRect(0, 0, SW, SH);
+  gx.globalCompositeOperation = 'lighter';
+  gx.filter = 'blur(2px)'; gx.globalAlpha = 0.9; gx.drawImage(lightCv, 0, 0);
+  gx.filter = 'blur(12px)'; gx.globalAlpha = 0.7; gx.drawImage(lightCv, 0, 0);
+  gx.filter = 'blur(46px)'; gx.globalAlpha = 0.85; gx.drawImage(lightCv, 0, 0);
+  gx.filter = 'none'; gx.globalAlpha = 1;
+}
+
+function drawShadows() {
+  const k = SHADOW_SCALE;
+  sx.setTransform(1, 0, 0, 1, 0, 0);
+  sx.filter = 'none';
+  sx.globalAlpha = 1;
+  sx.fillStyle = '#fff';
+  sx.fillRect(0, 0, shadowCv.width, shadowCv.height);
+  sx.setTransform(k, 0, 0, k, 0, 0);
+  sx.filter = `blur(${Math.max(3, S.size * 0.3 * k)}px)`;
+  sx.fillStyle = 'rgba(70,60,52,0.42)';
+  const ox = S.size * 0.2, oy = S.size * 0.3;
+  for (const it of items) {
+    sx.beginPath();
+    if (it.type === 'p') {
+      sx.moveTo(it.v[0][0] + ox, it.v[0][1] + oy);
+      sx.lineTo(it.v[1][0] + ox, it.v[1][1] + oy);
+      sx.lineTo(it.v[2][0] + ox, it.v[2][1] + oy);
+      sx.closePath();
+      sx.fill();
+    } else {
+      sx.lineWidth = 6;
+      sx.strokeStyle = 'rgba(70,60,52,0.35)';
+      sx.moveTo(it.v[0][0] + ox, it.v[0][1] + oy);
+      sx.lineTo(it.v[1][0] + ox, it.v[1][1] + oy);
+      sx.stroke();
+    }
+  }
+  sx.filter = 'none';
+}
+
+// ---------- three.js scene ----------
+const stage = $('#stage');
+const handle = $('#src');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+stage.insertBefore(renderer.domElement, stage.firstChild);
+
+const scene = new THREE.Scene();
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+const FOV = 54;
+const DIST = (SH / 2) / Math.tan(THREE.MathUtils.degToRad(FOV / 2));
+const camera = new THREE.PerspectiveCamera(FOV, 1, 10, DIST * 3);
+camera.position.set(0, 0, DIST);
+camera.lookAt(0, 0, 0);
+
+const key = new THREE.DirectionalLight(0xffffff, 1.6);
+key.position.set(-500, 600, 900);
+scene.add(key);
+
+const lightTex = new THREE.CanvasTexture(glowCv);
+const shadowTex = new THREE.CanvasTexture(shadowCv);
+for (const t of [lightTex, shadowTex]) {
+  t.minFilter = THREE.LinearFilter;
+  t.magFilter = THREE.LinearFilter;
+  t.generateMipmaps = false;
+}
+
+const wallMat = new THREE.ShaderMaterial({
+  uniforms: {
+    tLight: { value: lightTex },
+    tShadow: { value: shadowTex },
+    uTime: { value: 0 },
+    uTrees: { value: 0 },
+    uAspect: { value: 1 },
+  },
+  vertexShader: /* glsl */`
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: /* glsl */`
+    precision highp float;
+    varying vec2 vUv;
+    uniform sampler2D tLight;
+    uniform sampler2D tShadow;
+    uniform float uTime;
+    uniform float uTrees;
+    uniform float uAspect;
+
+    float hash(vec2 p) {
+      p = fract(p * vec2(123.34, 456.21));
+      p += dot(p, p + 45.32);
+      return fract(p.x * p.y);
+    }
+    float vnoise(vec2 p) {
+      vec2 i = floor(p), f = fract(p);
+      vec2 u = f * f * (3.0 - 2.0 * f);
+      float a = hash(i), b = hash(i + vec2(1.0, 0.0));
+      float c = hash(i + vec2(0.0, 1.0)), d = hash(i + vec2(1.0, 1.0));
+      return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+    }
+    float fbm(vec2 p) {
+      float v = 0.0, a = 0.5;
+      for (int i = 0; i < 5; i++) {
+        v += a * vnoise(p);
+        p = p * 2.03 + vec2(17.1, 9.7);
+        a *= 0.5;
+      }
+      return v;
+    }
+
+    void main() {
+      vec2 p = vec2(vUv.x * uAspect, vUv.y);
+      vec3 light = texture2D(tLight, vUv).rgb;
+      float castShadow = texture2D(tShadow, vUv).r;
+
+      vec3 wall = mix(vec3(0.905, 0.893, 0.868), vec3(0.955, 0.92, 0.855), uTrees);
+
+      // Plaster: broad unevenness plus fine grain.
+      float broad = fbm(p * 5.0) - 0.5;
+      float grain = hash(gl_FragCoord.xy) - 0.5;
+      float tex = broad * 0.035 + grain * 0.022;
+
+      vec2 q = vUv - 0.5;
+      float vig = 1.0 - 0.22 * dot(q, q);
+
+      // Dappled tree shade: two leaf layers swaying at different rates.
+      vec3 shade = vec3(1.0);
+      if (uTrees > 0.5) {
+        vec2 sway = 0.06 * vec2(sin(uTime * 0.55 + p.y * 3.0), cos(uTime * 0.43 + p.x * 2.6));
+        float l1 = fbm(p * 2.6 + sway + vec2(uTime * 0.012, 0.0));
+        float l2 = fbm(p * 6.0 - sway * 1.7 + vec2(3.7, uTime * 0.02));
+        float sun = smoothstep(0.40, 0.58, l1) * (0.55 + 0.45 * smoothstep(0.36, 0.6, l2));
+        shade = mix(vec3(0.63, 0.67, 0.76), vec3(1.0), sun);
+      }
+
+      vec3 base = wall * vig * shade * mix(1.0, castShadow, 0.9) + tex;
+
+      // Coloured light tints the wall; white light lifts it.
+      float mx = max(light.r, max(light.g, light.b));
+      vec3 col = base * (1.0 - 0.85 * (mx - light)) + (1.0 - base) * light;
+      col = clamp(col, 0.0, 1.0);
+
+      gl_FragColor = vec4(pow(col, vec3(2.2)), 1.0);
+      #include <colorspace_fragment>
+    }
+  `,
+});
+const wall = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), wallMat);
+scene.add(wall);
+
+// ---------- prism glass ----------
+// The mesh, the glass shading model, the accent layer and the studio
+// environment below are ported from the prism on vgpu.sh
+// (vercel-labs/vgpu, apps/docs/.../prism-background, MIT, (c) Vercel, Inc.)
+// and adapted from one fixed WebGPU prism to many instanced WebGL ones:
+// everything is evaluated in the prism's own unit space.
+
+// Unit prism: corners on the unit circle at 0/120/240 degrees, so the three
+// side planes are dot(n, p) = 0.5. It stands on the wall from z = 0 to DEPTH.
+const PRISM_DEPTH = 1.25;
+const PRISM_BEVEL = 0.055;
+
+// Port of prism-mesh.ts: fillet all nine edges, rounding inward only so the
+// visible mesh never leaves the planes the light is traced against.
+function roundedPrismGeometry(corners, depth, bevel) {
+  const CORNER_SEGMENTS = 5, BEVEL_SEGMENTS = 5, EDGE_SEGMENTS = 12;
+  const NC = corners.length;
+  const norm = v => { const l = Math.hypot(v[0], v[1]) || 1; return [v[0] / l, v[1] / l]; };
+  const edgeNormal = (a, b) => norm([b[1] - a[1], -(b[0] - a[0])]);
+  const radius = Math.min(bevel, depth * 0.45);
+
+  const arcs = corners.map((corner, i) => {
+    const prev = corners[(i + NC - 1) % NC], next = corners[(i + 1) % NC];
+    const toPrev = norm([prev[0] - corner[0], prev[1] - corner[1]]);
+    const toNext = norm([next[0] - corner[0], next[1] - corner[1]]);
+    const half = Math.acos(Math.max(-1, Math.min(1, toPrev[0] * toNext[0] + toPrev[1] * toNext[1]))) / 2;
+    const tangent = radius / Math.max(Math.tan(half), 1e-6);
+    const centerDist = radius / Math.max(Math.sin(half), 1e-6);
+    const bis = norm([toPrev[0] + toNext[0], toPrev[1] + toNext[1]]);
+    const center = [corner[0] + bis[0] * centerDist, corner[1] + bis[1] * centerDist];
+    const start = [corner[0] + toPrev[0] * tangent, corner[1] + toPrev[1] * tangent];
+    const end = [corner[0] + toNext[0] * tangent, corner[1] + toNext[1] * tangent];
+    const a0 = Math.atan2(start[1] - center[1], start[0] - center[0]);
+    let a1 = Math.atan2(end[1] - center[1], end[0] - center[0]);
+    while (a1 <= a0) a1 += Math.PI * 2;
+    const pts = [];
+    for (let s = 0; s <= CORNER_SEGMENTS; s++) {
+      const a = a0 + (a1 - a0) * s / CORNER_SEGMENTS, n = [Math.cos(a), Math.sin(a)];
+      pts.push({ p: [center[0] + n[0] * radius, center[1] + n[1] * radius], n });
+    }
+    return pts;
+  });
+  const contour = [];
+  arcs.forEach((arc, i) => {
+    contour.push(...arc);
+    const end = arc[arc.length - 1].p, nextStart = arcs[(i + 1) % NC][0].p;
+    const n = edgeNormal(corners[i], corners[(i + 1) % NC]);
+    for (let s = 1; s < EDGE_SEGMENTS; s++) {
+      const t = s / EDGE_SEGMENTS;
+      contour.push({ p: [end[0] + (nextStart[0] - end[0]) * t, end[1] + (nextStart[1] - end[1]) * t], n });
+    }
+  });
+
+  const pos = [], nor = [], idx = [], rings = [];
+  const push = (p, n) => { pos.push(...p); nor.push(...n); return pos.length / 3 - 1; };
+  const addRing = (theta, z, zn) => {
+    const inset = radius * (1 - Math.cos(theta)), w = Math.cos(theta);
+    rings.push(contour.map(c => push([c.p[0] - c.n[0] * inset, c.p[1] - c.n[1] * inset, z], [c.n[0] * w, c.n[1] * w, zn])));
+  };
+  const maxTheta = Math.PI / 2 - 0.06, maxSine = Math.sin(maxTheta);
+  for (let s = BEVEL_SEGMENTS; s >= 0; s--) {
+    const th = maxTheta * s / BEVEL_SEGMENTS;
+    addRing(th, radius - radius * Math.sin(th) / maxSine, -Math.sin(th));
+  }
+  for (let s = 0; s <= BEVEL_SEGMENTS; s++) {
+    const th = maxTheta * s / BEVEL_SEGMENTS;
+    addRing(th, depth - radius + radius * Math.sin(th) / maxSine, Math.sin(th));
+  }
+  for (let b = 0; b < rings.length - 1; b++) {
+    const cur = rings[b], nxt = rings[b + 1];
+    for (let i = 0; i < contour.length; i++) {
+      const j = (i + 1) % contour.length;
+      idx.push(cur[i], cur[j], nxt[j], cur[i], nxt[j], nxt[i]);
+    }
+  }
+  const addCap = (ring, normal, reverse) => {
+    const cap = ring.map(v => push([pos[v * 3], pos[v * 3 + 1], pos[v * 3 + 2]], normal));
+    const c = push([0, 0, pos[ring[0] * 3 + 2]], normal);
+    for (let i = 0; i < cap.length; i++) {
+      const j = (i + 1) % cap.length;
+      if (reverse) idx.push(c, cap[j], cap[i]); else idx.push(c, cap[i], cap[j]);
+    }
+  };
+  addCap(rings[0], [0, 0, -1], true);
+  addCap(rings[rings.length - 1], [0, 0, 1], false);
+
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+  g.setIndex(idx);
+  return g;
+}
+const TRI_CORNERS = [0, 1, 2].map(k => [Math.cos(k * Math.PI * 2 / 3), Math.sin(k * Math.PI * 2 / 3)]);
+const prismGeo = roundedPrismGeometry(TRI_CORNERS, PRISM_DEPTH, PRISM_BEVEL);
+// Film: a thin glass slab, half-length 1 along x, standing on the wall.
+const FILM_HALF = 0.11;
+const FILM_DEPTH = 1.1;
+const FILM_CORNERS = [[1, -FILM_HALF], [1, FILM_HALF], [-1, FILM_HALF], [-1, -FILM_HALF]];
+const filmGeo = roundedPrismGeometry(FILM_CORNERS, FILM_DEPTH, FILM_HALF * 0.55);
+
+// Everything behind the glass is rendered here first; the glass then looks
+// it up through its own refraction. Mips give the frosted blur.
+const sceneRT = new THREE.WebGLRenderTarget(4, 4, {
+  type: THREE.HalfFloatType,
+  generateMipmaps: true,
+  minFilter: THREE.LinearMipmapLinearFilter,
+  magFilter: THREE.LinearFilter,
+  depthBuffer: false,
+});
+const viewProj = new THREE.Matrix4();
+
+const glassMat = new THREE.ShaderMaterial({
+  uniforms: {
+    tScene: { value: sceneRT.texture },
+    uViewProj: { value: viewProj },
+    uDepth: { value: PRISM_DEPTH },
+    uIor: { value: 1.58 },
+    uAbsorb: { value: new THREE.Vector3(0.34, 0.33, 0.30) },
+    uFrost: { value: 2.2 },
+    uEnvExposure: { value: 3.0 },
+    uReflection: { value: 2.0 },
+    uPlanes: { value: [
+      new THREE.Vector3(0.5, 0.8660254, 0.5), new THREE.Vector3(-1, 0, 0.5),
+      new THREE.Vector3(0.5, -0.8660254, 0.5), new THREE.Vector3(0, 0, 0) ] },
+    uPlaneCount: { value: 3 },
+    uBandScale: { value: 1.0 },
+    uAccent: { value: 1.0 },
+    uIridescence: { value: 0.0 },
+  },
+  vertexShader: /* glsl */`
+    varying vec3 vLocalPos;
+    varying vec3 vLocalNormal;
+    varying vec3 vLocalCam;
+    varying vec3 vM0;
+    varying vec3 vM1;
+    varying vec3 vM2;
+    varying vec3 vT;
+    void main() {
+      mat4 m = modelMatrix;
+      #ifdef USE_INSTANCING
+        m = modelMatrix * instanceMatrix;
+      #endif
+      float s = max(length(m[0].xyz), 1e-5);
+      mat3 r = mat3(m[0].xyz / s, m[1].xyz / s, m[2].xyz / s);
+      vLocalPos = position;
+      vLocalNormal = normal;
+      vLocalCam = transpose(r) * (cameraPosition - m[3].xyz) / s;
+      vM0 = m[0].xyz; vM1 = m[1].xyz; vM2 = m[2].xyz; vT = m[3].xyz;
+      gl_Position = projectionMatrix * viewMatrix * m * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: /* glsl */`
+    precision highp float;
+    varying vec3 vLocalPos;
+    varying vec3 vLocalNormal;
+    varying vec3 vLocalCam;
+    varying vec3 vM0;
+    varying vec3 vM1;
+    varying vec3 vM2;
+    varying vec3 vT;
+    uniform sampler2D tScene;
+    uniform mat4 uViewProj;
+    uniform float uDepth;
+    uniform float uIor;
+    uniform vec3 uAbsorb;
+    uniform float uFrost;
+    uniform float uEnvExposure;
+    uniform float uReflection;
+    // Side planes of the cross-section as (nx, ny, offset): dot(n, p) = offset.
+    uniform vec3 uPlanes[4];
+    uniform int uPlaneCount;
+    uniform float uBandScale;
+    uniform float uAccent;
+    uniform float uIridescence;
+
+    const float NO_EXIT = 100000.0;
+
+    // --- studio environment (port of environment.wgsl) ---
+    float panelMask(vec3 dir, vec3 fwdIn, vec2 size, float feather) {
+      vec3 fwd = normalize(fwdIn);
+      vec3 helper = abs(fwd.y) > 0.92 ? vec3(0.0, 0.0, 1.0) : vec3(0.0, 1.0, 0.0);
+      vec3 right = normalize(cross(helper, fwd));
+      vec3 up = cross(fwd, right);
+      float facing = dot(dir, fwd);
+      if (facing <= 0.01) return 0.0;
+      float lx = abs(dot(dir, right) / facing);
+      float ly = abs(dot(dir, up) / facing);
+      return (1.0 - smoothstep(size.x, size.x + feather, lx))
+           * (1.0 - smoothstep(size.y, size.y + feather, ly));
+    }
+    vec3 studio(vec3 dirIn) {
+      vec3 dir = normalize(dirIn);
+      float floorBlend = 1.0 - smoothstep(-0.22, -0.02, dir.y);
+      vec3 room = mix(vec3(0.00025, 0.0003, 0.0004), vec3(0.006, 0.007, 0.009), floorBlend);
+      float negZ = 1.0 - smoothstep(-0.08, 0.08, dir.z);
+      float aboveFloor = smoothstep(-0.28, -0.08, dir.y);
+      room = mix(room, vec3(0.00002), negZ * aboveFloor);
+      float horizon = exp(-abs(dir.y + 0.1) * 22.0) * 0.0012;
+      vec3 c = room + vec3(horizon, horizon * 0.96, horizon * 0.9);
+      c += vec3(0.82, 0.84, 0.88) * panelMask(dir, vec3(-0.82, 0.08, 0.57), vec2(1.35, 1.1), 0.22) * 0.011;
+      c += vec3(1.0, 0.97, 0.91) * panelMask(dir, vec3(0.0, -0.707, 0.707), vec2(0.38, 0.62), 0.18) * 0.22;
+      c += vec3(0.76, 0.88, 1.0) * panelMask(dir, vec3(0.612, 0.354, 0.707), vec2(0.5, 0.16), 0.035) * 20.0;
+      return c / (vec3(1.0) + c);
+    }
+
+    // --- interior of the solid (port of glass.wgsl) ---
+    float planeExit(vec3 o, vec3 d, vec3 n, float off) {
+      float den = dot(n, d);
+      if (den <= 0.00001) return NO_EXIT;
+      float t = (off - dot(n, o)) / den;
+      return t > 0.0001 ? t : NO_EXIT;
+    }
+    void nextSurface(vec3 o, vec3 d, out float t, out vec3 n) {
+      t = planeExit(o, d, vec3(0.0, 0.0, 1.0), uDepth);
+      n = vec3(0.0, 0.0, 1.0);
+      float b = planeExit(o, d, vec3(0.0, 0.0, -1.0), 0.0);
+      if (b < t) { t = b; n = vec3(0.0, 0.0, -1.0); }
+      for (int i = 0; i < 4; i++) {
+        if (i >= uPlaneCount) break;
+        vec3 pl = uPlanes[i];
+        float s = planeExit(o, d, vec3(pl.xy, 0.0), pl.z);
+        if (s < t) { t = s; n = vec3(pl.xy, 0.0); }
+      }
+    }
+
+    // Thin-film interference colour for a reflection at this angle: the
+    // holographic sheen of diffraction film.
+    vec3 thinFilm(float cosTheta) {
+      float phase = 2.0 * 3.14159 * 900.0 * cosTheta;
+      return 0.5 + 0.5 * cos(phase / vec3(650.0, 540.0, 460.0) + vec3(0.0, 0.6, 1.2));
+    }
+
+    vec3 sceneAt(vec3 localPoint, float lod) {
+      vec3 world = mat3(vM0, vM1, vM2) * localPoint + vT;
+      vec4 clip = uViewProj * vec4(world, 1.0);
+      vec2 uv = clip.xy / max(clip.w, 0.00001) * 0.5 + 0.5;
+      return textureLod(tScene, clamp(uv, vec2(0.002), vec2(0.998)), lod).rgb;
+    }
+
+    float band(float d, float center, float width) {
+      float c = (d - center) / max(width, 0.0001);
+      return exp(-c * c);
+    }
+    float rim(float d, float width) {
+      return 1.0 - smoothstep(width * 0.35, width, d);
+    }
+
+    void main() {
+      mat3 toWorld = mat3(vM0, vM1, vM2);
+      vec3 N = normalize(vLocalNormal);
+      vec3 V = normalize(vLocalCam - vLocalPos);
+      vec3 I = -V;
+      float facing = clamp(dot(V, N), 0.0, 1.0);
+
+      vec3 reflDir = normalize(toWorld * reflect(I, N));
+      vec3 env = studio(reflDir) * uEnvExposure;
+      float f0 = pow((uIor - 1.0) / (uIor + 1.0), 2.0);
+      float fresnel = f0 + (1.0 - f0) * pow(1.0 - facing, 5.0);
+
+      // Follow the refracted ray through the solid, bouncing on total
+      // internal reflection, until it leaves.
+      vec3 d = refract(I, N, 1.0 / uIor);
+      vec3 p = vLocalPos + d * 0.001;
+      float travelled = 0.0;
+      bool escaped = false;
+      for (int i = 0; i < 3; i++) {
+        float t; vec3 n;
+        nextSurface(p, d, t, n);
+        if (t > 50.0) break;
+        p += d * t;
+        travelled += t;
+        vec3 o = refract(d, -n, uIor);
+        if (dot(o, o) > 0.0) { d = normalize(o); escaped = true; break; }
+        d = reflect(d, n);
+        p += d * 0.001;
+      }
+
+      vec3 background;
+      if (escaped && d.z < -0.02) {
+        float t = min(p.z / -d.z, 4.0);
+        background = sceneAt(p + d * t, uFrost);
+      } else if (escaped) {
+        background = mix(sceneAt(p, uFrost + 1.0), studio(normalize(toWorld * d)) * uEnvExposure, 0.35);
+      } else {
+        background = sceneAt(p, uFrost + 1.0);
+      }
+
+      vec3 transmitted = background * exp(-uAbsorb * travelled);
+      vec3 sheen = mix(vec3(1.0), thinFilm(facing) * 1.4, uIridescence);
+      vec3 reflected = env * uReflection * sheen;
+      transmitted *= mix(vec3(1.0), 1.0 - 0.35 * (1.0 - thinFilm(facing)), uIridescence);
+      vec3 glass = max(transmitted * (1.0 - fresnel) + reflected * fresnel, vec3(0.0));
+
+      // Keep bright studio panels readable on a frontal face.
+      float grazing = pow(1.0 - facing, 1.5);
+      float envLum = dot(env, vec3(0.2126, 0.7152, 0.0722));
+      float panelMaskValue = smoothstep(0.5, 0.82, envLum);
+      float panelStrength = panelMaskValue * clamp(uReflection * 0.4, 0.0, 0.7) * (0.65 + 0.35 * grazing);
+      glass += max(reflected * panelStrength, vec3(0.0));
+
+      // Accent layer (port of glass-accent.wgsl): inner bands and bevel rims
+      // that would otherwise vanish against an almost-white wall.
+      float BAND_CENTER = 0.16 * uBandScale;
+      float BAND_WIDTH = 0.105 * uBandScale;
+      float innerBand = 0.0, frontRim = 0.0, baseRim = 0.0;
+      for (int i = 0; i < 4; i++) {
+        if (i >= uPlaneCount) break;
+        vec3 pl = uPlanes[i];
+        float di = pl.z - dot(pl.xy, vLocalPos.xy);
+        float w = i == 0 ? 0.68 : i == 1 ? 1.0 : 0.38;
+        innerBand = max(innerBand, band(di, BAND_CENTER, BAND_WIDTH) * w);
+        frontRim = max(frontRim, rim(di, BAND_WIDTH * 0.55));
+        if (i == 2) baseRim = band(di, 0.0, BAND_WIDTH * 0.7);
+      }
+      float bevel = pow(clamp(1.0 - abs(N.z), 0.0, 1.0), 2.2);
+      float coverage = clamp(0.05 + innerBand * 0.52 + bevel * (0.18 + fresnel * 0.48), 0.0, 0.56);
+      float panel = smoothstep(0.08, 0.72, envLum);
+      vec3 tone = mix(vec3(0.052, 0.057, 0.066) * 6.0, max(env * 0.95, vec3(0.0)), panel);
+      vec3 neutralRim = vec3(0.92, 0.95, 1.0) * (bevel + frontRim * 0.72) * 0.45;
+      vec3 warmRim = vec3(1.0, 0.91, 0.78) * baseRim * 0.28;
+
+      coverage *= uAccent;
+      vec3 col = glass * (1.0 - coverage) + tone * coverage + (neutralRim + warmRim) * uAccent;
+      gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);
+      #include <colorspace_fragment>
+    }
+  `,
+});
+const prisms = new THREE.InstancedMesh(prismGeo, glassMat, MAXN);
+prisms.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+prisms.frustumCulled = false;
+scene.add(prisms);
+
+const filmMat = glassMat.clone();
+filmMat.uniforms.tScene.value = sceneRT.texture;
+filmMat.uniforms.uViewProj.value = viewProj;
+filmMat.uniforms.uDepth.value = FILM_DEPTH;
+filmMat.uniforms.uPlanes.value = [
+  new THREE.Vector3(1, 0, 1), new THREE.Vector3(0, 1, FILM_HALF),
+  new THREE.Vector3(-1, 0, 1), new THREE.Vector3(0, -1, FILM_HALF) ];
+filmMat.uniforms.uPlaneCount.value = 4;
+filmMat.uniforms.uAbsorb.value = new THREE.Vector3(0.06, 0.05, 0.04);
+filmMat.uniforms.uFrost.value = 0.8;
+filmMat.uniforms.uBandScale.value = 0.3;
+filmMat.uniforms.uAccent.value = 0.55;
+filmMat.uniforms.uIridescence.value = 1.0;
+const films = new THREE.InstancedMesh(filmGeo, filmMat, MAXN);
+films.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+films.frustumCulled = false;
+scene.add(films);
+
+const dummy = new THREE.Object3D();
+function syncMeshes() {
+  let np = 0, nf = 0;
+  for (const it of items) {
+    dummy.position.set(it.x - CX, CY - it.y, 0);
+    dummy.rotation.set(0, 0, -it.rot);
+    dummy.scale.setScalar(it.r);
+    dummy.updateMatrix();
+    if (it.type === 'p') prisms.setMatrixAt(np++, dummy.matrix);
+    else films.setMatrixAt(nf++, dummy.matrix);
+  }
+  prisms.count = np;
+  films.count = nf;
+  prisms.instanceMatrix.needsUpdate = true;
+  films.instanceMatrix.needsUpdate = true;
+}
+
+// ---------- sizing ----------
+function placeHandle() {
+  handle.style.left = (source.x / SW * 100) + '%';
+  handle.style.top = (source.y / SH * 100) + '%';
+}
+function resize() {
+  const w = Math.max(50, stage.clientWidth), h = Math.max(50, stage.clientHeight);
+  const fx = source.x / SW;
+  SW = Math.round(SH * w / h);
+  CX = SW / 2; CY = SH / 2;
+  source.x = Math.max(8, Math.min(SW - 8, fx * SW));
+  for (const c of [lightCv, glowCv]) { c.width = SW; c.height = SH; }
+  shadowCv.width = Math.round(SW * SHADOW_SCALE);
+  shadowCv.height = Math.round(SH * SHADOW_SCALE);
+  // Canvas size changed: drop the GPU copies so they are re-allocated.
+  lightTex.dispose();
+  shadowTex.dispose();
+  renderer.setSize(w, h, false);
+  const pr = renderer.getPixelRatio();
+  sceneRT.setSize(Math.round(w * pr), Math.round(h * pr));
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  camera.updateMatrixWorld();
+  viewProj.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+  wall.scale.set(SW, SH, 1);
+  wallMat.uniforms.uAspect.value = SW / SH;
+  placeHandle();
+  dirty = true;
+  // setSize clears the canvas; redraw now rather than flash blank.
+  if (started) tick(performance.now());
+}
+let started = false;
+new ResizeObserver(resize).observe(stage);
+
+// ---------- interaction ----------
+stage.addEventListener('wheel', e => {
+  e.preventDefault();
+  const d = (Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX) * (e.deltaMode === 1 ? 16 : 1);
+  if (S.src === 'point') theta += d * 0.002;
+  else aim += d * 0.002;
+  dirty = true;
+}, { passive: false });
+
+let dragging = false;
+// Dragging anywhere on the preview turns the whole pattern by hand.
+let turning = null;
+const stageAngle = e => {
+  const r = stage.getBoundingClientRect();
+  return Math.atan2(e.clientY - r.top - r.height / 2, e.clientX - r.left - r.width / 2);
+};
+stage.addEventListener('pointerdown', e => {
+  if (e.target === handle) return;
+  turning = { a0: stageAngle(e), theta0: theta };
+  stage.setPointerCapture(e.pointerId);
+  stage.style.cursor = 'grabbing';
+  e.preventDefault();
+});
+stage.addEventListener('pointermove', e => {
+  if (!turning) return;
+  let da = stageAngle(e) - turning.a0;
+  if (da > Math.PI) da -= Math.PI * 2;
+  if (da < -Math.PI) da += Math.PI * 2;
+  theta = turning.theta0 + da;
+  dirty = true;
+});
+const endTurn = () => { turning = null; stage.style.cursor = ''; lastT = 0; };
+stage.addEventListener('pointerup', endTurn);
+stage.addEventListener('pointercancel', endTurn);
+
+handle.addEventListener('pointerdown', e => {
+  e.stopPropagation();
+  dragging = true;
+  handle.setPointerCapture(e.pointerId);
+  e.preventDefault();
+});
+handle.addEventListener('pointermove', e => {
+  if (!dragging) return;
+  const r = stage.getBoundingClientRect();
+  source.x = Math.max(8, Math.min(SW - 8, (e.clientX - r.left) / r.width * SW));
+  source.y = Math.max(8, Math.min(SH - 8, (e.clientY - r.top) / r.height * SH));
+  placeHandle();
+  dirty = true;
+});
+const endDrag = () => { dragging = false; };
+handle.addEventListener('pointerup', endDrag);
+handle.addEventListener('pointercancel', endDrag);
+
+// ---------- controls ----------
+const FORMAT = {
+  width: v => v, bright: v => (v / 100).toFixed(2), disp: v => (v / 100).toFixed(2),
+  size: v => v, count: v => v, gap: v => v, speed: v => (v / 100).toFixed(2),
+};
+function syncUI() {
+  $$('.seg').forEach(seg => {
+    $$('button', seg).forEach(b => b.classList.toggle('on', b.dataset.val === String(S[seg.dataset.key])));
+  });
+  $$('input[type=range]').forEach(inp => {
+    const k = inp.dataset.key;
+    inp.value = S[k];
+    inp.style.setProperty('--p', ((S[k] - inp.min) / (inp.max - inp.min) * 100) + '%');
+    $('output', inp.parentElement).textContent = FORMAT[k](S[k]);
+  });
+  wallMat.uniforms.uTrees.value = S.bg === 'trees' ? 1 : 0;
+}
+function set(key, val) {
+  S[key] = val;
+  if (key === 'count' || key === 'gap' || key === 'lay') layout();
+  if (key === 'src') {
+    if (val === 'point') { source.x = CX; source.y = CY; }
+    else { source.x = 46; source.y = CY; aim = 0; }
+    placeHandle();
+  }
+  if (key === 'spin') lastT = 0;
+  dirty = true;
+  syncUI();
+}
+$$('.seg').forEach(seg => seg.addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (b) set(seg.dataset.key, b.dataset.val);
+}));
+$$('input[type=range]').forEach(inp => inp.addEventListener('input', () => set(inp.dataset.key, +inp.value)));
+$('#ring-more').addEventListener('click', () => {
+  const n = S.lay === 'rings' ? ringStep(S.count, S.gap, 1) : S.count + 6;
+  set('count', Math.min(MAXN, n));
+});
+$('#ring-less').addEventListener('click', () => {
+  const n = S.lay === 'rings' ? ringStep(S.count, S.gap, -1) : S.count - 6;
+  set('count', Math.max(1, n));
+});
+const root = document.documentElement;
+function applyTheme(t) {
+  root.dataset.theme = t;
+  try { localStorage.setItem('prism-theme', t); } catch (_) {}
+}
+try {
+  applyTheme(localStorage.getItem('prism-theme') || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'));
+} catch (_) { applyTheme('dark'); }
+$('#theme').addEventListener('click', () => applyTheme(root.dataset.theme === 'light' ? 'dark' : 'light'));
+
+// Footer heart: liked state fills it with prism light; one anonymous count per browser.
+const HEART_HIT = 'https://abacus.jasoncameron.dev/hit/prism-yuxuan/hearts';
+const heart = $('#heart');
+let liked = false, counted = false;
+try { liked = localStorage.getItem('prism-liked') === '1'; counted = localStorage.getItem('prism-counted') === '1'; } catch (_) {}
+heart.classList.toggle('liked', liked);
+heart.addEventListener('click', () => {
+  liked = !liked;
+  try { localStorage.setItem('prism-liked', liked ? '1' : '0'); } catch (_) {}
+  if (liked && !counted) {
+    counted = true;
+    try { localStorage.setItem('prism-counted', '1'); } catch (_) {}
+    fetch(HEART_HIT).catch(() => {});
+  }
+  heart.classList.remove('pop');
+  void heart.offsetWidth;
+  heart.classList.add('pop');
+  heart.classList.toggle('liked', liked);
+});
+heart.addEventListener('animationend', () => heart.classList.remove('pop'));
+
+$('#reset').addEventListener('click', () => {
+  Object.assign(S, DEFAULTS);
+  aim = 0; theta = 0;
+  source.x = 46; source.y = CY;
+  born = []; base = [];
+  placeHandle();
+  layout();
+  syncUI();
+});
+
+// ---------- loop ----------
+function frame(now) {
+  requestAnimationFrame(frame);
+  tick(now);
+}
+function tick(now) {
+  if (S.spin === 'on' && !dragging && !turning) {
+    const dt = lastT ? Math.min(60, now - lastT) : 16;
+    theta += dt * 0.0003 * (S.speed / 100);
+    if (S.speed > 0) dirty = true;
+  }
+  lastT = now;
+
+  if (dirty) {
+    const t0 = performance.now();
+    const popping = place(performance.now());
+    trace();
+    drawShadows();
+    syncMeshes();
+    lightTex.needsUpdate = true;
+    shadowTex.needsUpdate = true;
+    dirty = popping;
+    const el = performance.now() - t0;
+    if (el > 30) quality = Math.max(0.35, quality * 0.88);
+    else if (el < 16) quality = Math.min(1, quality * 1.04);
+  }
+
+  wallMat.uniforms.uTime.value = now / 1000;
+
+  // Pass 1: the lit wall alone, for the glass to refract.
+  prisms.visible = false;
+  films.visible = false;
+  renderer.setRenderTarget(sceneRT);
+  renderer.render(scene, camera);
+  // Pass 2: the wall again, with the glass on top.
+  renderer.setRenderTarget(null);
+  prisms.visible = true;
+  films.visible = true;
+  renderer.render(scene, camera);
+}
+
+resize();
+layout();
+syncUI();
+started = true;
+requestAnimationFrame(frame);
+// Lets a hidden tab (where requestAnimationFrame is paused) be stepped by hand.
+window.__prism = { step: () => tick(performance.now()), state: S };
+</script>
+</body>
+</html>
