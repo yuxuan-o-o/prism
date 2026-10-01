@@ -94,25 +94,22 @@
   }
   #stage { cursor: grab; }
   #stage canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+  /* Light source: a small lamp glyph. The beam variant points the way the
+     light goes; the point variant radiates. */
   #src {
     position: absolute;
-    width: 26px; height: 26px;
-    margin: -13px 0 0 -13px;
-    border-radius: 50%;
-    border: 1.5px solid rgba(40, 36, 32, 0.75);
-    background: rgba(255, 255, 255, 0.35);
+    width: 40px; height: 40px;
+    margin: -20px 0 0 -20px;
+    color: rgba(50, 46, 42, 0.8);
     cursor: grab;
     touch-action: none;
   }
   #src:active { cursor: grabbing; }
-  #stage.dark #src { border-color: rgba(255, 255, 255, 0.8); background: rgba(0, 0, 0, 0.3); }
-  #stage.dark #src::after { background: rgba(255, 255, 255, 0.85); }
-  #src::after {
-    content: "";
-    position: absolute; inset: 8px;
-    border-radius: 50%;
-    background: rgba(40, 36, 32, 0.75);
-  }
+  #src svg { display: block; width: 100%; height: 100%; transform: rotate(var(--aim, 0rad)); overflow: visible; }
+  #src .rays { display: none; }
+  #src.point .rays { display: block; }
+  #src.point .tick { display: none; }
+  #stage.dark #src { color: rgba(255, 255, 255, 0.85); }
   #err {
     position: absolute; inset: 0;
     display: none;
@@ -227,7 +224,17 @@
     <section class="preview">
       <span class="label">Preview</span>
       <div id="stage">
-        <div id="src" title="Drag to move the light"></div>
+        <div id="src" title="Drag to move the light">
+          <svg viewBox="-20 -20 40 40" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round">
+            <circle r="5.5"/>
+            <circle r="1.6" fill="currentColor" stroke="none"/>
+            <g class="tick"><path d="M8.5 0 H15"/><path d="M12.5 -2.5 L15 0 L12.5 2.5"/></g>
+            <g class="rays">
+              <path d="M8.5 0 H12"/><path d="M-8.5 0 H-12"/><path d="M0 8.5 V12"/><path d="M0 -8.5 V-12"/>
+              <path d="M6 6 L8.5 8.5"/><path d="M-6 -6 L-8.5 -8.5"/><path d="M6 -6 L8.5 -8.5"/><path d="M-6 6 L-8.5 8.5"/>
+            </g>
+          </svg>
+        </div>
         <div id="err"></div>
       </div>
     </section>
@@ -1075,7 +1082,7 @@ const glassMat = new THREE.ShaderMaterial({
       vec3 c = room + vec3(horizon, horizon * 0.96, horizon * 0.9);
       c += vec3(0.82, 0.84, 0.88) * panelMask(dir, vec3(-0.82, 0.08, 0.57), vec2(1.35, 1.1), 0.22) * 0.011;
       c += vec3(1.0, 0.97, 0.91) * panelMask(dir, vec3(0.0, -0.707, 0.707), vec2(0.38, 0.62), 0.18) * 0.22;
-      c += vec3(0.76, 0.88, 1.0) * panelMask(dir, vec3(0.612, 0.354, 0.707), vec2(0.5, 0.16), 0.035) * 20.0;
+      c += vec3(0.76, 0.88, 1.0) * panelMask(dir, vec3(0.612, 0.354, 0.707), vec2(0.5, 0.16), 0.06) * 7.0;
       return c / (vec3(1.0) + c);
     }
 
@@ -1177,7 +1184,10 @@ const glassMat = new THREE.ShaderMaterial({
       float facing = clamp(dot(V, N), 0.0, 1.0);
 
       vec3 reflDir = normalize(toWorld * reflect(I, N));
-      vec3 env = studio(reflDir) * uEnvExposure;
+      // A face parallel to the wall mirrors the studio key straight back at
+      // the camera; keep that from washing the whole top face out.
+      float flatFace = smoothstep(0.85, 0.98, abs(N.z));
+      vec3 env = studio(reflDir) * uEnvExposure * mix(1.0, 0.3, flatFace);
       float f0 = pow((uIor - 1.0) / (uIor + 1.0), 2.0);
       float fresnel = f0 + (1.0 - f0) * pow(1.0 - facing, 5.0);
 
@@ -1192,7 +1202,7 @@ const glassMat = new THREE.ShaderMaterial({
 
       vec3 transmitted = background * exp(-uAbsorb * travelled);
       vec3 sheen = mix(vec3(1.0), thinFilm(facing) * 1.4, uIridescence);
-      vec3 reflected = env * uReflection * sheen;
+      vec3 reflected = min(env * uReflection * sheen, vec3(0.7));
       transmitted *= mix(vec3(1.0), 1.0 - 0.35 * (1.0 - thinFilm(facing)), uIridescence);
       vec3 glass = max(transmitted * (1.0 - fresnel) + reflected * fresnel, vec3(0.0));
 
@@ -1283,6 +1293,8 @@ function syncMeshes() {
 function placeHandle() {
   handle.style.left = (source.x / SW * 100) + '%';
   handle.style.top = (source.y / SH * 100) + '%';
+  handle.style.setProperty('--aim', aim + 'rad');
+  handle.classList.toggle('point', S.src === 'point');
 }
 function resize() {
   const w = Math.max(50, stage.clientWidth), h = Math.max(50, stage.clientHeight);
@@ -1320,6 +1332,7 @@ stage.addEventListener('wheel', e => {
   const d = (Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX) * (e.deltaMode === 1 ? 16 : 1);
   if (S.src === 'point') theta += d * 0.002;
   else aim += d * 0.002;
+  placeHandle();
   dirty = true;
 }, { passive: false });
 
