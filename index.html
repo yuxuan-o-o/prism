@@ -705,14 +705,59 @@ for (const t of [lightTex, shadowTex]) {
   t.generateMipmaps = false;
 }
 
+// Plaster wall material (port of generate-wall.ts): r = albedo variation,
+// gb = surface normal xy, a = roughness. Tileable, so it repeats in world units.
+function plasterTexture(size) {
+  const lattice = new Float32Array(1024 * 1024);
+  for (let i = 0; i < lattice.length; i++) lattice[i] = Math.random();
+  const noise = (x, y, period) => {
+    const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy;
+    const sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
+    const at = (a, b) => lattice[(((b % period) + period) % period) * 1024 + (((a % period) + period) % period)];
+    const n00 = at(ix, iy), n10 = at(ix + 1, iy), n01 = at(ix, iy + 1), n11 = at(ix + 1, iy + 1);
+    return (n00 + (n10 - n00) * sx) * (1 - sy) + (n01 + (n11 - n01) * sx) * sy;
+  };
+  const fbm = (u, v, base, octaves) => {
+    let sum = 0, amp = 0.5, total = 0, f = base;
+    for (let o = 0; o < octaves; o++) { sum += amp * noise(u * f, v * f, f); total += amp; amp *= 0.5; f *= 2; }
+    return sum / total;
+  };
+  const height = new Float32Array(size * size);
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    const u = (x + 0.5) / size, v = (y + 0.5) / size;
+    height[y * size + x] = fbm(u, v, 34, 5) * 0.65 + fbm(u, v, 117, 2) * 0.35;
+  }
+  const data = new Uint8Array(size * size * 4);
+  const h = (x, y) => height[((y + size) % size) * size + ((x + size) % size)];
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    const dx = h(x + 1, y) - h(x - 1, y), dy = h(x, y + 1) - h(x, y - 1);
+    const variation = h(x, y) - 0.5, i = (y * size + x) * 4;
+    data[i] = 255 * Math.min(1, Math.max(0, 0.8 + variation * 0.06));
+    data[i + 1] = 255 * Math.min(1, Math.max(0, 0.5 - dx * 1.8 * size / 512));
+    data[i + 2] = 255 * Math.min(1, Math.max(0, 0.5 - dy * 1.8 * size / 512));
+    data[i + 3] = 255 * Math.min(1, Math.max(0, 0.86 + variation * 0.12));
+  }
+  const tex = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.minFilter = THREE.LinearMipmapLinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  tex.generateMipmaps = true;
+  tex.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+  tex.needsUpdate = true;
+  return tex;
+}
+const wallTex = plasterTexture(512);
+
 const wallMat = new THREE.ShaderMaterial({
   uniforms: {
     tLight: { value: lightTex },
     tShadow: { value: shadowTex },
+    tWall: { value: wallTex },
     uTime: { value: 0 },
     uTrees: { value: 0 },
     uDark: { value: 0 },
     uAspect: { value: 1 },
+    uSize: { value: new THREE.Vector2(1, 1) },
   },
   vertexShader: /* glsl */`
     varying vec2 vUv;
@@ -730,6 +775,8 @@ const wallMat = new THREE.ShaderMaterial({
     uniform float uTrees;
     uniform float uDark;
     uniform float uAspect;
+    uniform vec2 uSize;
+    uniform sampler2D tWall;
 
     float hash(vec2 p) {
       p = fract(p * vec2(123.34, 456.21));
@@ -753,17 +800,46 @@ const wallMat = new THREE.ShaderMaterial({
       return v;
     }
 
+    vec3 normalFromXy(vec2 n) {
+      vec2 l = n / max(length(n), 1.0);
+      return normalize(vec3(l, sqrt(max(1.0 - dot(l, l), 0.0001))));
+    }
+    float softBlob(vec2 uv, vec2 c, vec2 r) {
+      vec2 d = (uv - c) / r;
+      return exp(-dot(d, d) * 1.8);
+    }
+
     void main() {
       vec2 p = vec2(vUv.x * uAspect, vUv.y);
       vec3 light = texture2D(tLight, vUv).rgb;
       float castShadow = texture2D(tShadow, vUv).r;
+      vec2 worldPos = (vUv - 0.5) * uSize;
 
       vec3 wall = mix(vec3(0.905, 0.893, 0.868), vec3(0.955, 0.92, 0.855), uTrees);
 
-      // Plaster: broad unevenness plus fine grain.
-      float broad = fbm(p * 5.0) - 0.5;
+      // Plaster relief (port of wall-common.wgsl): a large and a micro normal
+      // field lit by one soft key from the upper left, plus a dull sheen.
+      const float MATERIAL_SCALE = 1300.0;
+      vec4 material = texture2D(tWall, worldPos / MATERIAL_SCALE);
+      vec4 micro = texture2D(tWall, worldPos / (MATERIAL_SCALE / 4.0) + vec2(0.371, 0.613), -0.5);
+      vec2 largeXy = (material.gb * 2.0 - 1.0) * 0.2;
+      vec2 microXy = (micro.gb * 2.0 - 1.0) * 0.26;
+      vec3 normal = normalFromXy(largeXy + microXy);
+      vec3 keyDir = normalize(vec3(-0.38, 0.52, 0.76));
+      float lightFacing = max(dot(normal, keyDir), 0.0);
+      float diffuse = mix(0.62, 1.0, lightFacing);
+      vec3 halfDir = normalize(keyDir + vec3(0.0, 0.0, 1.0));
+      float roughness = material.a;
+      float specular = pow(max(dot(normal, halfDir), 0.0), mix(48.0, 4.0, roughness)) * mix(0.07, 0.015, roughness);
       float grain = hash(gl_FragCoord.xy) - 0.5;
-      float tex = broad * 0.035 + grain * 0.022;
+      // Soft overhead light pooling on the wall, brighter towards the lower left.
+      float overhead = clamp(softBlob(vUv, vec2(0.12, 0.85), vec2(0.6, 0.55)) * 0.75
+        + softBlob(vUv, vec2(0.45, 0.35), vec2(0.28, 0.3)) * 0.35
+        + softBlob(vUv, vec2(0.85, 0.7), vec2(0.2, 0.25)) * 0.3, 0.0, 1.0);
+      float exposure = mix(0.86, 1.06, overhead);
+      // Normalise so a flat, average patch keeps the wall colour.
+      float relief = (material.r * diffuse + specular) / 0.8 * 1.1 * exposure;
+      float tex = grain * 0.012;
 
       vec2 q = vUv - 0.5;
       float vig = 1.0 - 0.22 * dot(q, q);
@@ -781,10 +857,10 @@ const wallMat = new THREE.ShaderMaterial({
       vec3 col;
       if (uDark > 0.5) {
         // Dark room: a near-black wall, light simply adds to it.
-        vec3 base = vec3(0.030, 0.030, 0.036) * vig + tex * 0.35;
+        vec3 base = vec3(0.030, 0.030, 0.036) * vig * (0.6 + 0.4 * relief) + specular * 0.2 + tex * 0.35;
         col = clamp(base + light * 0.8, 0.0, 1.0);
       } else {
-        vec3 base = wall * vig * shade * mix(1.0, castShadow, 0.9) + tex;
+        vec3 base = wall * relief * vig * shade * mix(1.0, castShadow, 0.9) + tex;
         // Coloured light tints the wall; white light lifts it.
         float mx = max(light.r, max(light.g, light.b));
         col = clamp(base * (1.0 - 0.85 * (mx - light)) + (1.0 - base) * light, 0.0, 1.0);
@@ -1229,6 +1305,7 @@ function resize() {
   viewProj.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
   wall.scale.set(SW, SH, 1);
   wallMat.uniforms.uAspect.value = SW / SH;
+  wallMat.uniforms.uSize.value.set(SW, SH);
   placeHandle();
   dirty = true;
   // setSize clears the canvas; redraw now rather than flash blank.
