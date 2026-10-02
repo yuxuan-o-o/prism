@@ -56,9 +56,22 @@
 
   .top { display: flex; align-items: center; gap: 18px; }
   .logo { font: 500 22px/1 ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: -0.02em; }
-  .top .right { margin-left: auto; display: flex; gap: 22px; color: var(--muted); font-size: 13px; }
-  .top .right button { text-transform: lowercase; }
-  .top .right button:hover { color: var(--text); }
+  .top .right { margin-left: auto; display: flex; gap: 4px; color: var(--muted); }
+  .top .right button {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 34px; height: 34px; border-radius: 9px;
+    transition: color 0.15s, background 0.15s;
+  }
+  .top .right button:hover { color: var(--text); background: var(--panel); }
+  .top .right svg { width: 16px; height: 16px; stroke-width: 1.6; }
+  .icon-off { display: none; }
+  .app.no-side .side { display: none; }
+  .app.no-side .main { grid-template-columns: minmax(0, 1fr); }
+  .app.no-side #side-toggle, .app.fs #fs-toggle { color: var(--text); }
+  .app.no-side #side-toggle .icon-on, .app.fs #fs-toggle .icon-on { display: none; }
+  .app.no-side #side-toggle .icon-off, .app.fs #fs-toggle .icon-off { display: inline; }
+  :root[data-theme="light"] #theme .icon-on { display: none; }
+  :root[data-theme="light"] #theme .icon-off { display: inline; }
 
   .main {
     min-height: 0;
@@ -70,9 +83,6 @@
   .preview {
     position: relative;
     min-height: 0;
-    background: var(--panel);
-    border-radius: var(--radius);
-    padding: 44px 16px 16px;
     display: flex;
   }
   .label {
@@ -81,35 +91,38 @@
     color: var(--muted);
     text-transform: uppercase;
   }
-  .preview > .label { position: absolute; top: 18px; left: 18px; }
   #stage {
     position: relative;
     flex: 1;
     min-width: 0;
     min-height: 0;
-    border-radius: 10px;
+    border-radius: var(--radius);
     overflow: hidden;
     background: var(--stage);
     touch-action: none;
   }
+  #stage:fullscreen { border-radius: 0; }
   #stage { cursor: grab; }
   #stage canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
-  /* Light source: a small lamp glyph. The beam variant points the way the
-     light goes; the point variant radiates. */
+  /* Light source: one quiet dot. The beam itself says where the light goes. */
   #src {
     position: absolute;
-    width: 40px; height: 40px;
-    margin: -20px 0 0 -20px;
-    color: rgba(50, 46, 42, 0.8);
+    width: 28px; height: 28px;
+    margin: -14px 0 0 -14px;
     cursor: grab;
     touch-action: none;
   }
+  #src::before {
+    content: "";
+    position: absolute; inset: 9px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 0 0 1px rgba(50, 46, 42, 0.45), 0 0 10px 3px rgba(255, 255, 255, 0.7);
+    transition: transform 0.15s;
+  }
+  #src:hover::before { transform: scale(1.3); }
   #src:active { cursor: grabbing; }
-  #src svg { display: block; width: 100%; height: 100%; transform: rotate(var(--aim, 0rad)); overflow: visible; }
-  #src .rays { display: none; }
-  #src.point .rays { display: block; }
-  #src.point .tick { display: none; }
-  #stage.dark #src { color: rgba(255, 255, 255, 0.85); }
+  #stage.dark #src::before { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35), 0 0 12px 4px rgba(255, 255, 255, 0.5); }
   #err {
     position: absolute; inset: 0;
     display: none;
@@ -203,7 +216,7 @@
     html, body { height: auto; }
     .app { height: auto; grid-template-rows: 64px auto auto; padding: 0 12px; }
     .main { grid-template-columns: 1fr; gap: 10px; }
-    .preview { height: min(78vh, 100vw); padding: 40px 10px 10px; }
+    .preview { height: min(78vh, 100vw); }
     .side { overflow: visible; }
     .foot { padding: 16px 0; }
     .top .right { gap: 16px; }
@@ -215,26 +228,28 @@
   <header class="top">
     <div class="logo">prism</div>
     <div class="right">
-      <button id="reset">↺ Reset</button>
-      <button id="theme" title="Switch light / dark interface">◐ Theme</button>
+      <button id="reset" title="reset" aria-label="reset">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+      </button>
+      <button id="theme" title="light / dark interface" aria-label="theme">
+        <svg class="icon-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+        <svg class="icon-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/></svg>
+      </button>
+      <button id="side-toggle" title="show / hide controls" aria-label="controls">
+        <svg class="icon-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M15 3v18"/></svg>
+        <svg class="icon-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M15 3v18"/><path d="M15 12h6" /></svg>
+      </button>
+      <button id="fs-toggle" title="fullscreen" aria-label="fullscreen">
+        <svg class="icon-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="m21 3-7 7"/><path d="m3 21 7-7"/><path d="M9 21H3v-6"/></svg>
+        <svg class="icon-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m14 10 7-7"/><path d="M20 10h-6V4"/><path d="m3 21 7-7"/><path d="M4 14h6v6"/></svg>
+      </button>
     </div>
   </header>
 
   <main class="main">
     <section class="preview">
-      <span class="label">Preview</span>
       <div id="stage">
-        <div id="src" title="Drag to move the light">
-          <svg viewBox="-20 -20 40 40" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round">
-            <circle r="5.5"/>
-            <circle r="1.6" fill="currentColor" stroke="none"/>
-            <g class="tick"><path d="M8.5 0 H15"/><path d="M12.5 -2.5 L15 0 L12.5 2.5"/></g>
-            <g class="rays">
-              <path d="M8.5 0 H12"/><path d="M-8.5 0 H-12"/><path d="M0 8.5 V12"/><path d="M0 -8.5 V-12"/>
-              <path d="M6 6 L8.5 8.5"/><path d="M-6 -6 L-8.5 -8.5"/><path d="M6 -6 L8.5 -8.5"/><path d="M-6 6 L-8.5 8.5"/>
-            </g>
-          </svg>
-        </div>
+        <div id="src" title="Drag to move the light"></div>
         <div id="err"></div>
       </div>
     </section>
@@ -1293,8 +1308,6 @@ function syncMeshes() {
 function placeHandle() {
   handle.style.left = (source.x / SW * 100) + '%';
   handle.style.top = (source.y / SH * 100) + '%';
-  handle.style.setProperty('--aim', aim + 'rad');
-  handle.classList.toggle('point', S.src === 'point');
 }
 function resize() {
   const w = Math.max(50, stage.clientWidth), h = Math.max(50, stage.clientHeight);
@@ -1332,7 +1345,6 @@ stage.addEventListener('wheel', e => {
   const d = (Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX) * (e.deltaMode === 1 ? 16 : 1);
   if (S.src === 'point') theta += d * 0.002;
   else aim += d * 0.002;
-  placeHandle();
   dirty = true;
 }, { passive: false });
 
@@ -1433,6 +1445,21 @@ try {
   applyTheme(localStorage.getItem('prism-theme') || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'));
 } catch (_) { applyTheme('dark'); }
 $('#theme').addEventListener('click', () => applyTheme(root.dataset.theme === 'light' ? 'dark' : 'light'));
+
+// Controls can be tucked away so the wall takes the whole width.
+const app = $('.app');
+$('#side-toggle').addEventListener('click', () => {
+  app.classList.toggle('no-side');
+  try { localStorage.setItem('prism-side', app.classList.contains('no-side') ? 'off' : 'on'); } catch (_) {}
+});
+try { if (localStorage.getItem('prism-side') === 'off') app.classList.add('no-side'); } catch (_) {}
+
+// Fullscreen shows the wall alone.
+$('#fs-toggle').addEventListener('click', () => {
+  if (document.fullscreenElement) document.exitFullscreen();
+  else stage.requestFullscreen && stage.requestFullscreen();
+});
+document.addEventListener('fullscreenchange', () => app.classList.toggle('fs', !!document.fullscreenElement));
 
 // Footer heart: liked state fills it with prism light; one anonymous count per browser.
 const HEART_HIT = 'https://abacus.jasoncameron.dev/hit/prism-yuxuan/hearts';
