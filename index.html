@@ -101,7 +101,19 @@
     background: var(--stage);
     touch-action: none;
   }
-  #stage:fullscreen { border-radius: 0; }
+  #stage:fullscreen, #stage.pseudo-fs { border-radius: 0; }
+  /* Fallback when the Fullscreen API is refused (embedded views, some
+     mobile browsers): the stage simply covers the window. */
+  #stage.pseudo-fs { position: fixed; inset: 0; z-index: 50; }
+  #fs-exit {
+    position: absolute; top: 14px; right: 14px; z-index: 2;
+    display: none; align-items: center; justify-content: center;
+    width: 34px; height: 34px; border-radius: 9px;
+    color: rgba(50, 46, 42, 0.7); background: rgba(255, 255, 255, 0.35);
+  }
+  #fs-exit svg { width: 16px; height: 16px; stroke-width: 1.6; }
+  #stage.pseudo-fs #fs-exit { display: inline-flex; }
+  #stage.dark #fs-exit { color: rgba(255, 255, 255, 0.8); background: rgba(0, 0, 0, 0.3); }
   #stage { cursor: grab; }
   #stage canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
   /* Light source: one quiet dot. The beam itself says where the light goes. */
@@ -250,6 +262,9 @@
     <section class="preview">
       <div id="stage">
         <div id="src" title="Drag to move the light"></div>
+        <button id="fs-exit" title="exit fullscreen" aria-label="exit fullscreen">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m14 10 7-7"/><path d="M20 10h-6V4"/><path d="m3 21 7-7"/><path d="M4 14h6v6"/></svg>
+        </button>
         <div id="err"></div>
       </div>
     </section>
@@ -1454,12 +1469,28 @@ $('#side-toggle').addEventListener('click', () => {
 });
 try { if (localStorage.getItem('prism-side') === 'off') app.classList.add('no-side'); } catch (_) {}
 
-// Fullscreen shows the wall alone.
+// Fullscreen shows the wall alone. If the browser refuses the real thing,
+// the stage covers the window instead.
+const isFull = () => !!document.fullscreenElement || stage.classList.contains('pseudo-fs');
+function setPseudo(on) {
+  stage.classList.toggle('pseudo-fs', on);
+  app.classList.toggle('fs', on);
+  resize();
+}
 $('#fs-toggle').addEventListener('click', () => {
-  if (document.fullscreenElement) document.exitFullscreen();
-  else stage.requestFullscreen && stage.requestFullscreen();
+  if (document.fullscreenElement) { document.exitFullscreen(); return; }
+  if (stage.classList.contains('pseudo-fs')) { setPseudo(false); return; }
+  const req = stage.requestFullscreen || stage.webkitRequestFullscreen;
+  let p = null;
+  try { p = req ? req.call(stage) : null; } catch (_) {}
+  if (p && p.catch) p.catch(() => setPseudo(true));
+  // Some hosts neither honour nor reject the request: fall back after a beat.
+  setTimeout(() => { if (!document.fullscreenElement && !stage.classList.contains('pseudo-fs')) setPseudo(true); }, 400);
 });
 document.addEventListener('fullscreenchange', () => app.classList.toggle('fs', !!document.fullscreenElement));
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && stage.classList.contains('pseudo-fs')) setPseudo(false); });
+$('#fs-exit').addEventListener('pointerdown', e => e.stopPropagation());
+$('#fs-exit').addEventListener('click', () => setPseudo(false));
 
 // Footer heart: liked state fills it with prism light; one anonymous count per browser.
 const HEART_HIT = 'https://abacus.jasoncameron.dev/hit/prism-yuxuan/hearts';
