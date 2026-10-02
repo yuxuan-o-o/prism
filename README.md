@@ -8,7 +8,9 @@ slowly turning, give you something else.
 
 ## Run it
 
-Open `index.html` in a recent Chrome, Edge or Safari. There is no build step.
+Live at [light-prism-film.vercel.app](https://light-prism-film.vercel.app/).
+
+Or open `index.html` in a recent Chrome, Edge or Safari. There is no build step.
 It needs an internet connection the first time, because three.js is loaded
 from a CDN.
 
