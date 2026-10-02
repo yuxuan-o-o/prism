@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>prism — light through patterns of glass</title>
 <meta name="description" content="A small light toy. White light goes through rings of glass prisms or diffraction film and comes out as colour on a plaster wall. Turn the light, add a ring, let it slowly spin.">
 <meta name="theme-color" content="#f4f3f1" media="(prefers-color-scheme: light)">
@@ -244,13 +244,34 @@
   }
 
   @media (max-width: 900px) {
-    html, body { height: auto; }
-    .app { height: auto; grid-template-rows: 64px auto auto; padding: 0 12px; }
-    .main { grid-template-columns: 1fr; gap: 10px; }
-    .preview { height: min(78vh, 100vw); }
-    .side { overflow: visible; }
-    .foot { padding: 16px 0; }
-    .top .right { gap: 16px; }
+    html, body { height: 100%; overflow: hidden; }
+    .app { display: block; height: 100%; padding: 0; max-width: none; }
+    .top {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 5;
+      height: 56px; padding: 0 10px 0 16px;
+      padding-top: env(safe-area-inset-top);
+    }
+    .top .right button { background: color-mix(in srgb, var(--panel) 70%, transparent); }
+    .top .right button:hover { background: var(--panel); }
+    #fs-toggle { display: none; }
+    .main { display: block; }
+    .preview { position: fixed; inset: 0; }
+    #stage { border-radius: 0; }
+    .side {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 6;
+      max-height: min(64vh, 64dvh);
+      padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
+      background: var(--bg);
+      border-radius: 18px 18px 0 0;
+      transform: translateY(100%);
+      transition: transform 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
+      overflow-y: auto;
+    }
+    .app.sheet-open .side { transform: translateY(0); }
+    .app.no-side .side { display: flex; }
+    .side .foot { padding: 14px 0 4px; }
+    .foot { display: none; }
+    .side .foot { display: flex; }
   }
 </style>
 </head>
@@ -340,6 +361,8 @@
           <input type="range" data-key="bright" min="20" max="300" step="5"></div>
         <div class="row"><div class="head"><span>Dispersion</span><output></output></div>
           <input type="range" data-key="disp" min="0" max="100" step="1"></div>
+        <div class="row"><div class="head"><span>Direction</span><output id="dir-out"></output></div>
+          <input type="range" id="dir" min="-40" max="40" step="1" value="0"></div>
       </div>
 
       <div class="card">
@@ -478,8 +501,10 @@ function ringStep(n, sp, dir) {
   }
   return Math.max(1, n - (last ? last[1] : 0));
 }
+// Narrow screens (phones) get the same pattern scaled down to fit.
+const fit = () => Math.min(1, SW / 820);
 function layout() {
-  const n = S.count, sp = S.gap, L = S.lay, P = [];
+  const n = S.count, sp = S.gap * fit(), L = S.lay, P = [];
   if (n === 1) {
     P.push([0, 0]);
   } else if (L === 'rings') {
@@ -542,7 +567,7 @@ function place(now) {
       rot = S.ori === 'in' ? ang + Math.PI / 2 : S.ori === 'out' ? ang
         : S.ori === 'same' ? Math.PI / 2 + theta : (i % 2 ? Math.PI / 4 : -Math.PI / 4) + theta;
     }
-    items.push({ x, y, r: Math.max(2, S.size * sc), rot, type });
+    items.push({ x, y, r: Math.max(2, S.size * fit() * sc), rot, type });
   });
   for (const it of items) {
     if (it.type === 'p') {
@@ -1366,6 +1391,7 @@ function resize() {
   wallMat.uniforms.uAspect.value = SW / SH;
   wallMat.uniforms.uSize.value.set(SW, SH);
   placeHandle();
+  if (base.length) layout();
   dirty = true;
   // setSize clears the canvas; redraw now rather than flash blank.
   if (started) tick(performance.now());
@@ -1389,6 +1415,7 @@ stage.addEventListener('wheel', e => {
   if (S.src === 'point') theta += d * 0.002;
   else aim = clampAim(aim + d * 0.002);
   dirty = true;
+  syncDir();
 }, { passive: false });
 
 let dragging = false;
@@ -1398,14 +1425,39 @@ const stageAngle = e => {
   const r = stage.getBoundingClientRect();
   return Math.atan2(e.clientY - r.top - r.height / 2, e.clientX - r.left - r.width / 2);
 };
+const fingers = new Map();
+let twist = null;
+const twistAngle = () => {
+  const [a, b] = [...fingers.values()];
+  return Math.atan2(b.y - a.y, b.x - a.x);
+};
 stage.addEventListener('pointerdown', e => {
-  if (e.target === handle) return;
-  turning = { a0: stageAngle(e), theta0: theta };
+  if (e.target === handle || e.target.closest('#fs-exit')) return;
+  fingers.set(e.pointerId, { x: e.clientX, y: e.clientY });
   stage.setPointerCapture(e.pointerId);
-  stage.style.cursor = 'grabbing';
   e.preventDefault();
+  if (fingers.size === 2) {
+    // Second finger: switch from turning the pattern to twisting the light.
+    turning = null;
+    twist = { a0: twistAngle(), aim0: aim, theta0: theta };
+    return;
+  }
+  turning = { a0: stageAngle(e), theta0: theta };
+  stage.style.cursor = 'grabbing';
 });
 stage.addEventListener('pointermove', e => {
+  if (!fingers.has(e.pointerId)) return;
+  fingers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (twist && fingers.size === 2) {
+    let da = twistAngle() - twist.a0;
+    if (da > Math.PI) da -= Math.PI * 2;
+    if (da < -Math.PI) da += Math.PI * 2;
+    if (S.src === 'point') theta = twist.theta0 + da;
+    else aim = clampAim(twist.aim0 + da);
+    dirty = true;
+    syncDir();
+    return;
+  }
   if (!turning) return;
   let da = stageAngle(e) - turning.a0;
   if (da > Math.PI) da -= Math.PI * 2;
@@ -1413,7 +1465,11 @@ stage.addEventListener('pointermove', e => {
   theta = turning.theta0 + da;
   dirty = true;
 });
-const endTurn = () => { turning = null; stage.style.cursor = ''; lastT = 0; };
+const endTurn = e => {
+  fingers.delete(e.pointerId);
+  if (fingers.size < 2) twist = null;
+  if (fingers.size === 0) { turning = null; stage.style.cursor = ''; lastT = 0; }
+};
 stage.addEventListener('pointerup', endTurn);
 stage.addEventListener('pointercancel', endTurn);
 
@@ -1447,6 +1503,7 @@ function syncUI() {
   });
   $$('input[type=range]').forEach(inp => {
     const k = inp.dataset.key;
+    if (!k) return;
     inp.value = S[k];
     inp.style.setProperty('--p', ((S[k] - inp.min) / (inp.max - inp.min) * 100) + '%');
     $('output', inp.parentElement).textContent = FORMAT[k](S[k]);
@@ -1454,6 +1511,7 @@ function syncUI() {
   wallMat.uniforms.uTrees.value = S.bg === 'trees' ? 1 : 0;
   wallMat.uniforms.uDark.value = S.bg === 'dark' ? 1 : 0;
   stage.classList.toggle('dark', S.bg === 'dark');
+  syncDir();
 }
 function set(key, val) {
   S[key] = val;
@@ -1471,13 +1529,37 @@ $$('.seg').forEach(seg => seg.addEventListener('click', e => {
   const b = e.target.closest('button');
   if (b) set(seg.dataset.key, b.dataset.val);
 }));
-$$('input[type=range]').forEach(inp => inp.addEventListener('input', () => set(inp.dataset.key, +inp.value)));
+$$('input[type=range]').forEach(inp => { if (inp.dataset.key) inp.addEventListener('input', () => set(inp.dataset.key, +inp.value)); });
+
+// Direction: degrees off the line from the source to the centre (the same
+// range the wheel is held to). With a point light it turns the pattern instead.
+const dirInput = $('#dir');
+function aimOffset() {
+  const base = Math.atan2(CY - source.y, CX - source.x);
+  let off = aim - base;
+  while (off > Math.PI) off -= Math.PI * 2;
+  while (off < -Math.PI) off += Math.PI * 2;
+  return off;
+}
+function syncDir() {
+  const deg = S.src === 'point' ? Math.round(theta * 180 / Math.PI) % 360 : Math.round(aimOffset() * 180 / Math.PI);
+  dirInput.value = S.src === 'point' ? ((deg + 360) % 360) : deg;
+  if (S.src === 'point') { dirInput.min = 0; dirInput.max = 359; } else { dirInput.min = -40; dirInput.max = 40; }
+  dirInput.style.setProperty('--p', ((dirInput.value - dirInput.min) / (dirInput.max - dirInput.min) * 100) + '%');
+  $('#dir-out').textContent = dirInput.value + '°';
+}
+dirInput.addEventListener('input', () => {
+  if (S.src === 'point') theta = +dirInput.value * Math.PI / 180;
+  else aim = clampAim(Math.atan2(CY - source.y, CX - source.x) + (+dirInput.value) * Math.PI / 180);
+  dirty = true;
+  syncDir();
+});
 $('#ring-more').addEventListener('click', () => {
-  const n = S.lay === 'rings' ? ringStep(S.count, S.gap, 1) : S.count + 6;
+  const n = S.lay === 'rings' ? ringStep(S.count, S.gap * fit(), 1) : S.count + 6;
   set('count', Math.min(MAXN, n));
 });
 $('#ring-less').addEventListener('click', () => {
-  const n = S.lay === 'rings' ? ringStep(S.count, S.gap, -1) : S.count - 6;
+  const n = S.lay === 'rings' ? ringStep(S.count, S.gap * fit(), -1) : S.count - 6;
   set('count', Math.max(1, n));
 });
 const root = document.documentElement;
@@ -1492,11 +1574,21 @@ $('#theme').addEventListener('click', () => applyTheme(root.dataset.theme === 'l
 
 // Controls can be tucked away so the wall takes the whole width.
 const app = $('.app');
+const phone = matchMedia('(max-width: 900px)');
 $('#side-toggle').addEventListener('click', () => {
+  if (phone.matches) { app.classList.toggle('sheet-open'); return; }
   app.classList.toggle('no-side');
   try { localStorage.setItem('prism-side', app.classList.contains('no-side') ? 'off' : 'on'); } catch (_) {}
 });
 try { if (localStorage.getItem('prism-side') === 'off') app.classList.add('no-side'); } catch (_) {}
+// On phones the credit line lives at the bottom of the sheet.
+const foot = $('.foot'), side = $('.side'), mainEl = $('.main');
+function placeFoot() {
+  if (phone.matches) side.appendChild(foot); else app.appendChild(foot);
+  if (!phone.matches) app.classList.remove('sheet-open');
+}
+phone.addEventListener('change', placeFoot);
+placeFoot();
 
 // "Fill": the wall takes the whole browser window. Esc or the corner button brings the page back.
 function setFill(on) {
