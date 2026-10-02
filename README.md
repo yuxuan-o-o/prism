@@ -17,12 +17,12 @@ from a CDN.
 | | |
 | --- | --- |
 | Scroll (wheel or two fingers) | Turn the light. With a point light, turn the pattern. |
-| Drag the circle | Move the light source |
+| Drag the dot | Move the light source |
 | Light | Beam or point, width, brightness, dispersion |
-| Element | Prism, diffraction film, or both alternating |
-| Pattern | Rings, circle, spiral, grid, hex; which way the prisms face; add or remove a ring |
-| Surface | White wall or tree shade |
-| Motion | Slow rotation and its speed |
+| Element | Prism or diffraction film |
+| Pattern | Rings, circle, spiral, grid, hex; which way the prisms face; add or remove a ring; slow rotation on or off |
+| Surface | White wall, tree shade or a dark room |
+| Top bar | Reset, light or dark interface, hide the controls, fill the browser window with the wall |
 
 ## How it works
 

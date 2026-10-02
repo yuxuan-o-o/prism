@@ -3,7 +3,25 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>prism</title>
+<title>prism — light through patterns of glass</title>
+<meta name="description" content="A small light toy. White light goes through rings of glass prisms or diffraction film and comes out as colour on a plaster wall. Turn the light, add a ring, let it slowly spin.">
+<meta name="theme-color" content="#f4f3f1" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#070707" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta property="og:type" content="website">
+<meta property="og:title" content="prism — light through patterns of glass">
+<meta property="og:description" content="White light goes through rings of glass prisms and comes out as colour on a plaster wall. A small toy to turn, spin and stare at.">
+<meta property="og:image" content="og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="prism — light through patterns of glass">
+<meta name="twitter:description" content="White light goes through rings of glass prisms and comes out as colour on a plaster wall. A small toy to turn, spin and stare at.">
+<meta name="twitter:image" content="og.png">
+<meta name="twitter:creator" content="@yuxuan_o_o">
 <style>
   :root {
     --bg: #070707;
@@ -101,7 +119,7 @@
     background: var(--stage);
     touch-action: none;
   }
-  #stage:fullscreen, #stage.pseudo-fs { border-radius: 0; }
+  #stage.pseudo-fs { border-radius: 0; }
   /* Fallback when the Fullscreen API is refused (embedded views, some
      mobile browsers): the stage simply covers the window. */
   #stage.pseudo-fs { position: fixed; inset: 0; z-index: 50; }
@@ -251,7 +269,7 @@
         <svg class="icon-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M15 3v18"/></svg>
         <svg class="icon-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M15 3v18"/><path d="M15 12h6" /></svg>
       </button>
-      <button id="fs-toggle" title="fullscreen" aria-label="fullscreen">
+      <button id="fs-toggle" title="fill the window" aria-label="fill the window">
         <svg class="icon-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="m21 3-7 7"/><path d="m3 21 7-7"/><path d="M9 21H3v-6"/></svg>
         <svg class="icon-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m14 10 7-7"/><path d="M20 10h-6V4"/><path d="m3 21 7-7"/><path d="M4 14h6v6"/></svg>
       </button>
@@ -262,7 +280,7 @@
     <section class="preview">
       <div id="stage">
         <div id="src" title="Drag to move the light"></div>
-        <button id="fs-exit" title="exit fullscreen" aria-label="exit fullscreen">
+        <button id="fs-exit" title="back to the page" aria-label="back to the page">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m14 10 7-7"/><path d="M20 10h-6V4"/><path d="m3 21 7-7"/><path d="M4 14h6v6"/></svg>
         </button>
         <div id="err"></div>
@@ -856,11 +874,11 @@ const wallMat = new THREE.ShaderMaterial({
 
       // Plaster relief (port of wall-common.wgsl): a large and a micro normal
       // field lit by one soft key from the upper left, plus a dull sheen.
-      const float MATERIAL_SCALE = 1300.0;
+      const float MATERIAL_SCALE = 1500.0;
       vec4 material = texture2D(tWall, worldPos / MATERIAL_SCALE);
       vec4 micro = texture2D(tWall, worldPos / (MATERIAL_SCALE / 4.0) + vec2(0.371, 0.613), -0.5);
-      vec2 largeXy = (material.gb * 2.0 - 1.0) * 0.2;
-      vec2 microXy = (micro.gb * 2.0 - 1.0) * 0.26;
+      vec2 largeXy = (material.gb * 2.0 - 1.0) * 0.15;
+      vec2 microXy = (micro.gb * 2.0 - 1.0) * 0.14;
       vec3 normal = normalFromXy(largeXy + microXy);
       vec3 keyDir = normalize(vec3(-0.38, 0.52, 0.76));
       float lightFacing = max(dot(normal, keyDir), 0.0);
@@ -1469,28 +1487,16 @@ $('#side-toggle').addEventListener('click', () => {
 });
 try { if (localStorage.getItem('prism-side') === 'off') app.classList.add('no-side'); } catch (_) {}
 
-// Fullscreen shows the wall alone. If the browser refuses the real thing,
-// the stage covers the window instead.
-const isFull = () => !!document.fullscreenElement || stage.classList.contains('pseudo-fs');
-function setPseudo(on) {
+// "Fill": the wall takes the whole browser window. Esc or the corner button brings the page back.
+function setFill(on) {
   stage.classList.toggle('pseudo-fs', on);
   app.classList.toggle('fs', on);
   resize();
 }
-$('#fs-toggle').addEventListener('click', () => {
-  if (document.fullscreenElement) { document.exitFullscreen(); return; }
-  if (stage.classList.contains('pseudo-fs')) { setPseudo(false); return; }
-  const req = stage.requestFullscreen || stage.webkitRequestFullscreen;
-  let p = null;
-  try { p = req ? req.call(stage) : null; } catch (_) {}
-  if (p && p.catch) p.catch(() => setPseudo(true));
-  // Some hosts neither honour nor reject the request: fall back after a beat.
-  setTimeout(() => { if (!document.fullscreenElement && !stage.classList.contains('pseudo-fs')) setPseudo(true); }, 400);
-});
-document.addEventListener('fullscreenchange', () => app.classList.toggle('fs', !!document.fullscreenElement));
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && stage.classList.contains('pseudo-fs')) setPseudo(false); });
+$('#fs-toggle').addEventListener('click', () => setFill(!stage.classList.contains('pseudo-fs')));
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && stage.classList.contains('pseudo-fs')) setFill(false); });
 $('#fs-exit').addEventListener('pointerdown', e => e.stopPropagation());
-$('#fs-exit').addEventListener('click', () => setPseudo(false));
+$('#fs-exit').addEventListener('click', () => setFill(false));
 
 // Footer heart: liked state fills it with prism light; one anonymous count per browser.
 const HEART_HIT = 'https://abacus.jasoncameron.dev/hit/prism-yuxuan/hearts';
