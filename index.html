@@ -33,7 +33,7 @@
     --dim: #4a4a4a;
     --thumb: #5a5a5a;
     --fill: #1d1d1d;
-    --stage: #0b0b0b;
+    --stage: #d9d6d0;
     --pill: #262626;
     --radius: 16px;
   }
@@ -47,7 +47,7 @@
     --dim: #c9c7c2;
     --thumb: #a8a49d;
     --fill: #e8e6e2;
-    --stage: #e9e7e3;
+    --stage: #d9d6d0;
     --pill: #ffffff;
   }
   :root[data-theme="light"] input[type=range] { background: linear-gradient(90deg, var(--fill) var(--p, 50%), #f3f2ef var(--p, 50%)); }
@@ -133,7 +133,8 @@
   #stage.pseudo-fs #fs-exit { display: inline-flex; }
   #stage.dark #fs-exit { color: rgba(255, 255, 255, 0.8); background: rgba(0, 0, 0, 0.3); }
   #stage { cursor: grab; }
-  #stage canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+  #stage canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; opacity: 0; transition: opacity 0.9s ease; }
+  #stage.ready canvas { opacity: 1; }
   /* Light source: one quiet dot. The beam itself says where the light goes. */
   #src {
     position: absolute;
@@ -1373,11 +1374,20 @@ let started = false;
 new ResizeObserver(resize).observe(stage);
 
 // ---------- interaction ----------
+// The beam stays pointed at the pattern: at most ~40 degrees off the line
+// from the source to the centre, so it never turns away into nothing.
+function clampAim(a) {
+  const base = Math.atan2(CY - source.y, CX - source.x);
+  let off = a - base;
+  while (off > Math.PI) off -= Math.PI * 2;
+  while (off < -Math.PI) off += Math.PI * 2;
+  return base + Math.max(-0.7, Math.min(0.7, off));
+}
 stage.addEventListener('wheel', e => {
   e.preventDefault();
   const d = (Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX) * (e.deltaMode === 1 ? 16 : 1);
   if (S.src === 'point') theta += d * 0.002;
-  else aim += d * 0.002;
+  else aim = clampAim(aim + d * 0.002);
   dirty = true;
 }, { passive: false });
 
@@ -1418,6 +1428,7 @@ handle.addEventListener('pointermove', e => {
   const r = stage.getBoundingClientRect();
   source.x = Math.max(8, Math.min(SW - 8, (e.clientX - r.left) / r.width * SW));
   source.y = Math.max(8, Math.min(SH - 8, (e.clientY - r.top) / r.height * SH));
+  if (S.src === 'beam') aim = clampAim(aim);
   placeHandle();
   dirty = true;
 });
@@ -1549,6 +1560,7 @@ function tick(now) {
     drawShadows();
     syncMeshes();
     lightTex.needsUpdate = true;
+    if (!stage.classList.contains('ready')) requestAnimationFrame(() => stage.classList.add('ready'));
     shadowTex.needsUpdate = true;
     dirty = popping;
     const el = performance.now() - t0;
