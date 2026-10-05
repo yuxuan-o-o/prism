@@ -1579,13 +1579,25 @@ function showTheme() {
 try {
   applyTheme(localStorage.getItem('prism-theme') || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'));
 } catch (_) { applyTheme('dark'); }
-$('#theme').addEventListener('click', () => applyTheme(root.dataset.theme === 'light' ? 'dark' : 'light'));
+$('#theme').addEventListener('click', () => {
+  // Over the filled wall the interface already follows the wall, so this
+  // button switches the wall itself: white wall <-> dark room.
+  if (stage.classList.contains('pseudo-fs')) { set('bg', S.bg === 'dark' ? 'wall' : 'dark'); return; }
+  applyTheme(root.dataset.theme === 'light' ? 'dark' : 'light');
+});
 
 // Controls can be tucked away so the wall takes the whole width.
 const app = $('.app');
 const phone = matchMedia('(max-width: 900px)');
 $('#side-toggle').addEventListener('click', () => {
   if (phone.matches) { app.classList.toggle('sheet-open'); return; }
+  // From the filled wall, asking for the controls brings the page back with them open.
+  if (stage.classList.contains('pseudo-fs')) {
+    app.classList.remove('no-side');
+    try { localStorage.setItem('prism-side', 'on'); } catch (_) {}
+    setFill(false);
+    return;
+  }
   app.classList.toggle('no-side');
   try { localStorage.setItem('prism-side', app.classList.contains('no-side') ? 'off' : 'on'); } catch (_) {}
 });
