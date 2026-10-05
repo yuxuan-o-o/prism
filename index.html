@@ -191,9 +191,9 @@
   input[type=range] {
     -webkit-appearance: none; appearance: none;
     display: block;
-    width: 100%; height: 36px; margin: 0;
+    width: 100%; height: 36px; margin: 0; padding: 0 48px 0 84px;
     border-radius: 9px;
-    background: linear-gradient(90deg, var(--fill) var(--p, 50%), var(--track) var(--p, 50%));
+    background: linear-gradient(90deg, var(--fill) calc(84px + (100% - 135px) * var(--pf, 0.5) + 10px), var(--track) 0);
     cursor: ew-resize;
     outline: none;
   }
@@ -1505,12 +1505,13 @@ function syncUI() {
     const k = inp.dataset.key;
     if (!k) return;
     inp.value = S[k];
-    inp.style.setProperty('--p', ((S[k] - inp.min) / (inp.max - inp.min) * 100) + '%');
+    inp.style.setProperty('--pf', (S[k] - inp.min) / (inp.max - inp.min));
     $('output', inp.parentElement).textContent = FORMAT[k](S[k]);
   });
   wallMat.uniforms.uTrees.value = S.bg === 'trees' ? 1 : 0;
   wallMat.uniforms.uDark.value = S.bg === 'dark' ? 1 : 0;
   stage.classList.toggle('dark', S.bg === 'dark');
+  if (typeof showTheme === 'function') showTheme();
   syncDir();
 }
 function set(key, val) {
@@ -1545,7 +1546,7 @@ function syncDir() {
   const deg = S.src === 'point' ? Math.round(theta * 180 / Math.PI) % 360 : Math.round(aimOffset() * 180 / Math.PI);
   dirInput.value = S.src === 'point' ? ((deg + 360) % 360) : deg;
   if (S.src === 'point') { dirInput.min = 0; dirInput.max = 359; } else { dirInput.min = -40; dirInput.max = 40; }
-  dirInput.style.setProperty('--p', ((dirInput.value - dirInput.min) / (dirInput.max - dirInput.min) * 100) + '%');
+  dirInput.style.setProperty('--pf', (dirInput.value - dirInput.min) / (dirInput.max - dirInput.min));
   $('#dir-out').textContent = dirInput.value + '°';
 }
 dirInput.addEventListener('input', () => {
@@ -1563,9 +1564,17 @@ $('#ring-less').addEventListener('click', () => {
   set('count', Math.max(1, n));
 });
 const root = document.documentElement;
+let chosenTheme = 'dark';
 function applyTheme(t) {
-  root.dataset.theme = t;
+  chosenTheme = t;
   try { localStorage.setItem('prism-theme', t); } catch (_) {}
+  showTheme();
+}
+// What is actually shown: the chosen theme, except over the filled wall, where
+// the interface takes the wall's side so it does not sit on it like a block.
+function showTheme() {
+  const filled = stage.classList.contains('pseudo-fs');
+  root.dataset.theme = filled ? (S.bg === 'dark' ? 'dark' : 'light') : chosenTheme;
 }
 try {
   applyTheme(localStorage.getItem('prism-theme') || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'));
@@ -1594,6 +1603,7 @@ placeFoot();
 function setFill(on) {
   stage.classList.toggle('pseudo-fs', on);
   app.classList.toggle('fs', on);
+  showTheme();
   resize();
 }
 $('#fs-toggle').addEventListener('click', () => setFill(!stage.classList.contains('pseudo-fs')));
