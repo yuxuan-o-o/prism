@@ -47,7 +47,7 @@
     --text: #17171a;
     --muted: #8a8884;
     --dim: #c9c7c2;
-    --thumb: #8a8884;
+    --thumb: #a3a09b;
     --track: #e9e7e3;
     --stage: #d9d6d0;
     --pill: #f8f7f5;
@@ -180,7 +180,7 @@
   .row { position: relative; margin-bottom: 6px; border-radius: 10px; background: var(--track); }
   .row::before {
     content: ""; position: absolute; left: 3px; top: 3px; bottom: 3px;
-    width: calc(81px + (100% - 135px) * var(--pf, 0.5) + 7px);
+    width: calc(81px + (100% - 134px) * var(--pf, 0.5) + 6px);
     border-radius: 7px; background: var(--pill);
   }
   .row:last-child { margin-bottom: 0; }
@@ -203,12 +203,12 @@
   }
   input[type=range]::-webkit-slider-thumb {
     -webkit-appearance: none; appearance: none;
-    width: 3px; height: 20px;
+    width: 2px; height: 20px;
     border-radius: 2px;
     background: var(--thumb);
   }
   input[type=range]::-moz-range-thumb {
-    width: 3px; height: 20px;
+    width: 2px; height: 20px;
     border: 0; border-radius: 2px;
     background: var(--thumb);
   }
