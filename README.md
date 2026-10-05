@@ -22,9 +22,9 @@ from a CDN.
 | Drag the dot | Move the light source |
 | Light | Beam or point, width, brightness, dispersion |
 | Element | Prism or diffraction film |
-| Pattern | Rings, circle, spiral, grid, hex; which way the prisms face; add or remove a ring; slow rotation on or off |
+| Pattern | Rings, circle, spiral, grid, hex; which way the prisms face; add or remove a ring |
 | Surface | White wall, tree shade or a dark room |
-| Top bar | Reset, light or dark interface, hide the controls, fill the browser window with the wall |
+| Top bar | Reset, hide the controls, slow rotation on or off, light or dark interface, fill the browser window with the wall |
 
 ## How it works
 
