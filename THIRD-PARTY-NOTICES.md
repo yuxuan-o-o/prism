@@ -44,6 +44,12 @@ SOFTWARE.
 
 Loaded at runtime from jsDelivr. MIT License, Copyright (c) 2010-2024 three.js authors.
 
+## Geist (fonts)
+
+Geist Sans and Geist Mono by Vercel, loaded from jsDelivr via `@fontsource/geist`
+and `@fontsource/geist-mono`. SIL Open Font License 1.1. The interface also
+borrows Geist's gray scale and corner radii; those are design choices, not code.
+
 ## Lucide
 
 The interface icons (reset, sun, moon, panel, fullscreen) are from

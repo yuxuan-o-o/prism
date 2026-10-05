@@ -8,6 +8,9 @@
 <meta name="theme-color" content="#f4f3f1" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#070707" media="(prefers-color-scheme: dark)">
 <link rel="canonical" href="https://light-prism-film.vercel.app/">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/geist@5.3.0/400.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/geist@5.3.0/500.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/geist-mono@5.3.0/500.css">
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
@@ -25,32 +28,33 @@
 <meta name="twitter:image" content="https://light-prism-film.vercel.app/og.png">
 <meta name="twitter:creator" content="@yuxuan_o_o">
 <style>
+  /* Colour and type follow Vercel's Geist: its gray scale, 6/8/12px radii, Geist Sans + Mono. */
   :root {
-    --bg: #070707;
-    --panel: #101010;
-    --panel-2: #161616;
-    --line: #1c1c1c;
+    --bg: #000000;
+    --panel: #0a0a0a;
+    --panel-2: #1a1a1a;
+    --line: #1f1f1f;
     --text: #ededed;
-    --muted: #7a7a7a;
-    --dim: #4a4a4a;
-    --thumb: #ffffff;
-    --track: #161616;
+    --muted: #8f8f8f;
+    --dim: #3d3d3d;
+    --thumb: #ededed;
+    --track: #1a1a1a;
     --stage: #d9d6d0;
-    --pill: #262626;
-    --radius: 16px;
+    --pill: #2e2e2e;
+    --radius: 12px;
   }
   :root[data-theme="light"] {
-    --bg: #f4f3f1;
+    --bg: #fafafa;
     --panel: #ffffff;
-    --panel-2: #e9e7e3;
-    --line: #e6e4e0;
-    --text: #17171a;
-    --muted: #8a8884;
-    --dim: #c9c7c2;
-    --thumb: #b4b1ac;
-    --track: #e9e7e3;
+    --panel-2: #f2f2f2;
+    --line: #ebebeb;
+    --text: #171717;
+    --muted: #8f8f8f;
+    --dim: #d1d1d1;
+    --thumb: #a1a1a1;
+    --track: #f2f2f2;
     --stage: #d9d6d0;
-    --pill: #f8f7f5;
+    --pill: #fcfcfc;
   }
   * { box-sizing: border-box; }
   html, body { height: 100%; }
@@ -58,7 +62,7 @@
     margin: 0;
     background: var(--bg);
     color: var(--text);
-    font: 14px/1.4 Inter, -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    font: 14px/1.4 Geist, Inter, -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
   }
   button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
@@ -73,11 +77,11 @@
   }
 
   .top { display: flex; align-items: center; gap: 18px; }
-  .logo { font: 500 22px/1 ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: -0.02em; }
+  .logo { font: 500 20px/1 "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: -0.02em; }
   .top .right { margin-left: auto; display: flex; gap: 4px; color: var(--muted); }
   .top .right button {
     display: inline-flex; align-items: center; justify-content: center;
-    width: 34px; height: 34px; border-radius: 9px;
+    width: 34px; height: 34px; border-radius: 6px;
     transition: color 0.15s, background 0.15s;
   }
   .top .right button:hover { color: var(--text); background: var(--panel); }
@@ -174,17 +178,17 @@
   .card { background: var(--panel); border-radius: var(--radius); padding: clamp(14px, 1.6vh, 26px) clamp(14px, 1.5vh, 22px) clamp(13px, 1.5vh, 24px); }
   .card > .label { display: block; margin-bottom: clamp(11px, 1.2vh, 20px); }
 
-  .seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 2px; margin-bottom: clamp(10px, 1vh, 16px); padding: 3px; border-radius: 10px; background: var(--panel-2); }
+  .seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 2px; margin-bottom: clamp(10px, 1vh, 16px); padding: 3px; border-radius: 8px; background: var(--panel-2); }
   .seg:last-child { margin-bottom: 0; }
-  .seg button { padding: clamp(6px, 0.75vh, 11px) 4px; border-radius: 7px; color: var(--muted); font-size: 12px; white-space: nowrap; text-transform: lowercase; transition: background 0.15s, color 0.15s; }
+  .seg button { padding: clamp(6px, 0.75vh, 11px) 4px; border-radius: 6px; color: var(--muted); font-size: 12px; white-space: nowrap; text-transform: lowercase; transition: background 0.15s, color 0.15s; }
   .seg button:hover { color: var(--text); }
   .seg button.on { background: var(--pill); color: var(--text); }
 
-  .row { position: relative; margin-bottom: clamp(6px, 0.7vh, 12px); border-radius: 10px; background: var(--track); }
+  .row { position: relative; margin-bottom: clamp(6px, 0.7vh, 12px); border-radius: 8px; background: var(--track); }
   .row::before {
     content: ""; position: absolute; left: 3px; top: 3px; bottom: 3px;
     width: calc(81px + (100% - 134px) * var(--pf, 0.5) + 6px);
-    border-radius: 7px; background: var(--pill);
+    border-radius: 6px; background: var(--pill);
   }
   .row:last-child { margin-bottom: 0; }
   .row .head {
@@ -192,14 +196,14 @@
     display: flex; justify-content: space-between; align-items: center;
     padding: 0 12px; font-size: 12px; font-weight: 500; text-transform: lowercase;
   }
-  .row .head output { color: var(--muted); font-weight: 400; font-variant-numeric: tabular-nums; }
+  .row .head output { color: var(--muted); font-weight: 400; font-family: "Geist Mono", ui-monospace, monospace; font-size: 11px; }
 
   input[type=range] {
     -webkit-appearance: none; appearance: none;
     position: relative; z-index: 1;
     display: block;
     width: 100%; height: clamp(36px, 3.7vh, 50px); margin: 0; padding: 0 48px 0 84px;
-    border-radius: 9px;
+    border-radius: 8px;
     background: transparent;
     cursor: ew-resize;
     outline: none;
@@ -218,7 +222,7 @@
   input[type=range]:hover::-webkit-slider-thumb { transform: scaleY(1.15); }
 
   .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: clamp(10px, 1vh, 16px); }
-  .pair button { padding: clamp(7px, 0.8vh, 12px); border-radius: 8px; background: var(--panel-2); color: var(--muted); font-size: 12px; text-transform: lowercase; }
+  .pair button { padding: clamp(7px, 0.8vh, 12px); border-radius: 6px; background: var(--panel-2); color: var(--muted); font-size: 12px; text-transform: lowercase; }
   .pair button:hover { color: var(--text); }
   .pair button:active { transform: scale(0.98); }
 
@@ -272,7 +276,7 @@
       max-height: min(64vh, 64dvh);
       padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
       background: var(--bg);
-      border-radius: 18px 18px 0 0;
+      border-radius: 12px 12px 0 0;
       transform: translateY(100%);
       transition: transform 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
       overflow-y: auto;
