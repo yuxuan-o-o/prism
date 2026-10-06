@@ -448,6 +448,8 @@
   window.addEventListener('error', function (e) {
     var el = document.getElementById('err');
     if (!el) return;
+    // The analytics script only exists on Vercel; its 404 elsewhere is not a failure.
+    if (e.target && e.target.src && e.target.src.indexOf('_vercel') !== -1) return;
     el.style.display = 'flex';
     el.textContent = 'Could not start: ' + (e.message || 'three.js failed to load (needs internet for the CDN).');
   }, true);
@@ -1549,6 +1551,9 @@ function syncUI() {
   wallMat.uniforms.uDark.value = S.bg === 'dark' ? 1 : 0;
   stage.classList.toggle('dark', S.bg === 'dark');
   const darkRoom = S.bg === 'dark';
+  // The wall plane is sized to the view in whole sim units, so a sub-pixel of
+  // the clear colour can show along an edge; make that colour the wall's own.
+  renderer.setClearColor(darkRoom ? 0x080809 : (S.bg === 'trees' ? 0xe8e2d6 : 0xe2dfd9), 1);
   glassMat.uniforms.uAbsorb.value.set(...(darkRoom ? [0.42, 0.42, 0.24] : [0.34, 0.33, 0.30]));
   glassMat.uniforms.uReflection.value = darkRoom ? 2.6 : 2.0;
   glassMat.uniforms.uInner.value = darkRoom ? 1.4 : 0.35;
