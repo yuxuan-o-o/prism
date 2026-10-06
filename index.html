@@ -488,6 +488,7 @@ const MAXN = 90;
 let aim = 0, theta = 0, lastT = 0, quality = 1, dirty = true;
 let touching = 0;
 let lastRayWidth = 1.8;
+let lastThinBoost = 1;
 const source = { x: 46, y: SH / 2 };
 let base = [], born = [], items = [], edges = [];
 
@@ -661,7 +662,7 @@ function trace() {
   const rays = [];
   let cover, lw;
   if (point) {
-    const NR = Math.round((hasFilm ? 150 : 280) * quality);
+    const NR = hasFilm ? 150 : 280;
     lw = 1.8;
     for (let i = 0; i < NR; i++) {
       const a = (i + 0.37) / NR * Math.PI * 2;
@@ -669,7 +670,7 @@ function trace() {
     }
     cover = NR * lw / (2 * Math.PI * 120);
   } else {
-    const NR = Math.round(Math.max(30, Math.min(hasFilm ? 130 : 240, bw * 0.9)) * quality);
+    const NR = Math.round(Math.max(30, Math.min(hasFilm ? 130 : 240, bw * 0.9)));
     // Fewer rays (slow devices) means wider strokes, so the beam never
     // separates into stripes.
     lw = Math.max(1.8, bw / NR * 1.3);
@@ -683,13 +684,17 @@ function trace() {
   }
   lx.lineWidth = lw;
   lastRayWidth = lw;
+  const spawnEvery = Math.max(1, Math.round(1 / quality));
+  // Fewer continuing rays: each is a little stronger and a little wider, not n times.
+  const thinBoost = Math.sqrt(spawnEvery);
+  lx2.lineWidth = lw * 1.4 * thinBoost;
+  lastThinBoost = thinBoost;
   lx2.setTransform(1, 0, 0, 1, 0, 0);
   lx2.globalCompositeOperation = 'source-over';
   lx2.globalAlpha = 1;
   lx2.fillStyle = '#000';
   lx2.fillRect(0, 0, SW, SH);
   lx2.globalCompositeOperation = 'lighter';
-  lx2.lineWidth = lw * 1.4;
   lx2.lineCap = 'butt';
   const aBase = bright * 0.42 / (cover * SUM);
   const grating = 2600 - 1500 * disp, cut = 0.05, CHUNK = 120, FADE = 900, FAR = 1500;
@@ -738,23 +743,25 @@ function trace() {
           budget--;
         }
         if (bi < 0 || depth >= 14) continue;
+        if (depth === 0 && ri % spawnEvery !== 0) continue;
         const nd = dist + tt;
         const e = edges[bi];
         let nx = e.nx, ny = e.ny, c = dx * nx + dy * ny;
+        const I2 = depth === 0 ? I * thinBoost : I;
         if (e.type === 'p') {
           let n1 = 1, n2 = n;
           if (c > 0) { nx = -nx; ny = -ny; n1 = n; n2 = 1; } else { c = -c; }
           const eta = n1 / n2, k = 1 - eta * eta * (1 - c * c);
           const rx = dx + 2 * c * nx, ry = dy + 2 * c * ny;
           if (k < 0) {
-            stack.push([px, py, rx, ry, I * 0.98, depth + 1, bi, nd]);
+            stack.push([px, py, rx, ry, I2 * 0.98, depth + 1, bi, nd]);
           } else {
             const ct = Math.sqrt(k), R0 = Math.pow((n1 - n2) / (n1 + n2), 2);
             const cc = n1 > n2 ? ct : c, R = R0 + (1 - R0) * Math.pow(1 - cc, 5);
-            if (I * R > cut) stack.push([px, py, rx, ry, I * R, depth + 1, bi, nd]);
-            if (I * (1 - R) > cut) {
+            if (I2 * R > cut) stack.push([px, py, rx, ry, I2 * R, depth + 1, bi, nd]);
+            if (I2 * (1 - R) > cut) {
               const f = eta * c - ct;
-              stack.push([px, py, eta * dx + f * nx, eta * dy + f * ny, I * (1 - R), depth + 1, bi, nd]);
+              stack.push([px, py, eta * dx + f * nx, eta * dy + f * ny, I2 * (1 - R), depth + 1, bi, nd]);
             }
           }
         } else {
@@ -763,7 +770,7 @@ function trace() {
           for (let m = -1; m <= 1; m++) {
             const s = s0 + m * lam / grating;
             if (s <= -1 || s >= 1) continue;
-            const w = Math.sqrt(1 - s * s), Im = I * (m === 0 ? 0.36 : 0.32);
+            const w = Math.sqrt(1 - s * s), Im = I2 * (m === 0 ? 0.36 : 0.32);
             if (Im > cut) stack.push([px, py, e.tx * s + nx * w, e.ty * s + ny * w, Im, depth + 1, bi, nd]);
           }
         }
@@ -775,7 +782,7 @@ function trace() {
   lx.globalCompositeOperation = 'lighter';
   lx.globalAlpha = 1;
   // Blurring spreads each thread thin; drawing it twice gives the fans their light back.
-  lx.filter = 'blur(' + Math.max(4, lastRayWidth * 2).toFixed(1) + 'px)';
+  lx.filter = 'blur(' + (Math.max(4, lastRayWidth * 2) * lastThinBoost).toFixed(1) + 'px)';
   lx.drawImage(light2Cv, 0, 0);
   lx.drawImage(light2Cv, 0, 0);
   lx.filter = 'none';
@@ -1877,7 +1884,7 @@ syncUI();
 started = true;
 requestAnimationFrame(frame);
 // Lets a hidden tab (where requestAnimationFrame is paused) be stepped by hand.
-window.__prism = { step: () => tick(performance.now()), state: S };
+window.__prism = { step: () => tick(performance.now()), state: S, setQuality: q => { quality = q; dirty = true; } };
 </script>
 </body>
 </html>
