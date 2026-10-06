@@ -295,6 +295,12 @@
       overflow-y: auto;
     }
     .app.sheet-open .side { transform: translateY(0); }
+    .side.dragging { transition: none; }
+    /* grab handle */
+    .side::before {
+      content: ""; display: block; flex: 0 0 4px; width: 36px; height: 4px; margin: 2px auto 6px;
+      border-radius: 2px; background: var(--dim);
+    }
     .app.no-side .side { display: flex; }
     .side .foot { padding: 14px 0 4px; }
     .foot { display: none; }
@@ -1642,6 +1648,12 @@ $('#theme').addEventListener('click', () => {
 // Controls can be tucked away so the wall takes the whole width.
 const app = $('.app');
 const phone = matchMedia('(max-width: 900px)');
+// A phone screen is small and close: the beam starts narrower and dimmer.
+const PHONE_DEFAULTS = { width: 150, bright: 65 };
+function applyDefaults() {
+  Object.assign(S, DEFAULTS, phone.matches ? PHONE_DEFAULTS : {});
+}
+applyDefaults();
 $('#side-toggle').addEventListener('click', () => {
   if (phone.matches) { app.classList.toggle('sheet-open'); return; }
   // From the filled wall, asking for the controls brings the page back with them open.
@@ -1663,6 +1675,38 @@ function placeFoot() {
 }
 phone.addEventListener('change', placeFoot);
 placeFoot();
+
+// Swiping the sheet down closes it. The drag only starts from a resting
+// sheet (scrolled to the top) and not on a control, so sliders keep working.
+let sheetDrag = null;
+side.addEventListener('pointerdown', e => {
+  if (!phone.matches || !app.classList.contains('sheet-open')) return;
+  if (e.target.closest('input, button, a')) return;
+  sheetDrag = { id: e.pointerId, y0: e.clientY, dy: 0, moved: false };
+});
+side.addEventListener('pointermove', e => {
+  if (!sheetDrag || e.pointerId !== sheetDrag.id) return;
+  const dy = e.clientY - sheetDrag.y0;
+  if (!sheetDrag.moved) {
+    if (Math.abs(dy) < 8 || side.scrollTop > 0) return;
+    sheetDrag.moved = true;
+    side.setPointerCapture(e.pointerId);
+    side.classList.add('dragging');
+  }
+  sheetDrag.dy = Math.max(0, dy);
+  side.style.transform = 'translateY(' + sheetDrag.dy + 'px)';
+  e.preventDefault();
+});
+const endSheetDrag = e => {
+  if (!sheetDrag || e.pointerId !== sheetDrag.id) return;
+  const close = sheetDrag.dy > 90;
+  side.classList.remove('dragging');
+  side.style.transform = '';
+  if (close) app.classList.remove('sheet-open');
+  sheetDrag = null;
+};
+side.addEventListener('pointerup', endSheetDrag);
+side.addEventListener('pointercancel', endSheetDrag);
 
 // "Fill": the wall takes the whole browser window. Esc or the corner button brings the page back.
 function setFill(on) {
@@ -1698,7 +1742,7 @@ heart.addEventListener('animationend', () => heart.classList.remove('pop'));
 $('#spin-toggle').addEventListener('click', () => set('spin', S.spin === 'on' ? 'off' : 'on'));
 
 $('#reset').addEventListener('click', () => {
-  Object.assign(S, DEFAULTS);
+  applyDefaults();
   aim = 0; theta = 0;
   source.x = 46; source.y = CY;
   born = []; base = [];
