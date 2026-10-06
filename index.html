@@ -687,7 +687,7 @@ function trace() {
   const spawnEvery = Math.max(1, Math.round(1 / quality));
   // Fewer continuing rays: each is a little stronger and a little wider, not n times.
   const thinBoost = Math.sqrt(spawnEvery);
-  lx2.lineWidth = lw * 1.4 * thinBoost;
+  lx2.lineWidth = lw * 1.1 * thinBoost;
   lastThinBoost = thinBoost;
   lx2.setTransform(1, 0, 0, 1, 0, 0);
   lx2.globalCompositeOperation = 'source-over';
@@ -781,9 +781,9 @@ function trace() {
   // Fold the softened secondary light into the main layer.
   lx.globalCompositeOperation = 'lighter';
   lx.globalAlpha = 1;
-  // Blurring spreads each thread thin; drawing it twice gives the fans their light back.
-  lx.filter = 'blur(' + (Math.max(4, lastRayWidth * 2) * lastThinBoost).toFixed(1) + 'px)';
-  lx.drawImage(light2Cv, 0, 0);
+  // Just enough blur to melt the threads together; more than this and the
+  // wavelengths merge back into white.
+  lx.filter = 'blur(' + (Math.max(1.2, lastRayWidth * 0.7) * lastThinBoost).toFixed(1) + 'px)';
   lx.drawImage(light2Cv, 0, 0);
   lx.filter = 'none';
 
@@ -1884,7 +1884,7 @@ syncUI();
 started = true;
 requestAnimationFrame(frame);
 // Lets a hidden tab (where requestAnimationFrame is paused) be stepped by hand.
-window.__prism = { step: () => tick(performance.now()), state: S, setQuality: q => { quality = q; dirty = true; } };
+window.__prism = { step: () => tick(performance.now()), state: S, setQuality: q => { quality = q; dirty = true; }, canvases: { lightCv, light2Cv, glowCv } };
 </script>
 </body>
 </html>
