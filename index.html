@@ -482,6 +482,7 @@ let SW = 1100, CX = SW / 2, CY = SH / 2;
 const MAXN = 90;
 
 let aim = 0, theta = 0, lastT = 0, quality = 1, dirty = true;
+let touching = 0;
 const source = { x: 46, y: SH / 2 };
 let base = [], born = [], items = [], edges = [];
 
@@ -1549,7 +1550,7 @@ function syncUI() {
   $$('input[type=range]').forEach(inp => {
     const k = inp.dataset.key;
     if (!k) return;
-    inp.value = S[k];
+    if (String(inp.value) !== String(S[k]) && inp !== document.activeElement) inp.value = S[k];
     inp.parentElement.style.setProperty('--pf', (S[k] - inp.min) / (inp.max - inp.min));
     $('output', inp.parentElement).textContent = FORMAT[k](S[k]);
   });
@@ -1585,7 +1586,12 @@ $$('.seg').forEach(seg => seg.addEventListener('click', e => {
   const b = e.target.closest('button');
   if (b) set(seg.dataset.key, b.dataset.val);
 }));
-$$('input[type=range]').forEach(inp => { if (inp.dataset.key) inp.addEventListener('input', () => set(inp.dataset.key, +inp.value)); });
+$$('input[type=range]').forEach(inp => {
+  inp.addEventListener('pointerdown', () => { touching = performance.now() + 2000; });
+  inp.addEventListener('input', () => { touching = performance.now() + 400; });
+  inp.addEventListener('pointerup', () => { touching = 0; dirty = true; });
+  if (inp.dataset.key) inp.addEventListener('input', () => set(inp.dataset.key, +inp.value));
+});
 
 // Direction: degrees off the line from the source to the centre (the same
 // range the wheel is held to). With a point light it turns the pattern instead.
@@ -1766,6 +1772,8 @@ function tick(now) {
 
   if (dirty) {
     const t0 = performance.now();
+    const held = quality;
+    if (touching && performance.now() < touching) quality = Math.min(quality, 0.5);
     const popping = place(performance.now());
     trace();
     drawShadows();
@@ -1775,6 +1783,7 @@ function tick(now) {
     shadowTex.needsUpdate = true;
     dirty = popping;
     const el = performance.now() - t0;
+    if (touching && performance.now() < touching) quality = held;
     if (el > 30) quality = Math.max(0.35, quality * 0.88);
     else if (el < 16) quality = Math.min(1, quality * 1.04);
   }
