@@ -487,6 +487,7 @@ const MAXN = 90;
 
 let aim = 0, theta = 0, lastT = 0, quality = 1, dirty = true;
 let touching = 0;
+let traceEvery = 1, frameNo = 0;
 let lastRayWidth = 1.8;
 let lastThinBoost = 1;
 const source = { x: 46, y: SH / 2 };
@@ -1844,10 +1845,12 @@ function tick(now) {
   }
   lastT = now;
 
-  if (dirty) {
+  // The light is always traced in full, so it looks the same on every device;
+  // a slow device simply traces on every 2nd, 3rd or 4th frame instead.
+  frameNo++;
+  const every = (touching && performance.now() < touching) ? Math.max(2, traceEvery) : traceEvery;
+  if (dirty && frameNo % every === 0) {
     const t0 = performance.now();
-    const held = quality;
-    if (touching && performance.now() < touching) quality = Math.min(quality, 0.5);
     const popping = place(performance.now());
     trace();
     drawShadows();
@@ -1857,9 +1860,8 @@ function tick(now) {
     shadowTex.needsUpdate = true;
     dirty = popping;
     const el = performance.now() - t0;
-    if (touching && performance.now() < touching) quality = held;
-    if (el > 30) quality = Math.max(0.35, quality * 0.88);
-    else if (el < 16) quality = Math.min(1, quality * 1.04);
+    if (el > 34) traceEvery = Math.min(4, traceEvery + 1);
+    else if (el < 14) traceEvery = Math.max(1, traceEvery - 1);
   }
 
   wallMat.uniforms.uTime.value = now / 1000;
@@ -1882,7 +1884,7 @@ syncUI();
 started = true;
 requestAnimationFrame(frame);
 // Lets a hidden tab (where requestAnimationFrame is paused) be stepped by hand.
-window.__prism = { step: () => tick(performance.now()), state: S, setQuality: q => { quality = q; dirty = true; }, canvases: { lightCv, light2Cv, glowCv } };
+window.__prism = { step: () => tick(performance.now()), state: S, canvases: { lightCv, light2Cv, glowCv } };
 </script>
 </body>
 </html>
