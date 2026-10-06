@@ -975,7 +975,7 @@ scene.add(wall);
 
 // Unit prism: corners on the unit circle at 0/120/240 degrees, so the three
 // side planes are dot(n, p) = 0.5. It stands on the wall from z = 0 to DEPTH.
-const PRISM_DEPTH = 1.25;
+const PRISM_DEPTH = 0.85;
 const PRISM_BEVEL = 0.055;
 
 // Port of prism-mesh.ts: fillet all nine edges, rounding inward only so the
@@ -1062,7 +1062,7 @@ const TRI_CORNERS = [0, 1, 2].map(k => [Math.cos(k * Math.PI * 2 / 3), Math.sin(
 const prismGeo = roundedPrismGeometry(TRI_CORNERS, PRISM_DEPTH, PRISM_BEVEL);
 // Film: a thin glass slab, half-length 1 along x, standing on the wall.
 const FILM_HALF = 0.11;
-const FILM_DEPTH = 1.1;
+const FILM_DEPTH = 0.8;
 const FILM_CORNERS = [[1, -FILM_HALF], [1, FILM_HALF], [-1, FILM_HALF], [-1, -FILM_HALF]];
 const filmGeo = roundedPrismGeometry(FILM_CORNERS, FILM_DEPTH, FILM_HALF * 0.55);
 

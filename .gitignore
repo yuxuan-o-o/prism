@@ -10,3 +10,4 @@ node_modules/
 *.gif
 *.zip
 recordings/
+*.screenstudio
