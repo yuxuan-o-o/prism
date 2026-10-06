@@ -27,6 +27,15 @@
 <meta name="twitter:description" content="White light goes through rings of glass prisms and comes out as colour on a plaster wall. A small toy to turn, spin and stare at.">
 <meta name="twitter:image" content="https://light-prism-film.vercel.app/og.png">
 <meta name="twitter:creator" content="@yuxuan_o_o">
+<script>
+  // Pick the interface theme before anything paints. The main script runs only
+  // once three.js has arrived from the CDN, and until then the page would sit
+  // in the default dark tokens: that was the black flash on every open.
+  try {
+    document.documentElement.dataset.theme = localStorage.getItem('prism-theme')
+      || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+  } catch (e) {}
+</script>
 <style>
   /* Colour and type follow Vercel's Geist: its gray scale, 6/8/12px radii, Geist Sans + Mono. */
   :root {
