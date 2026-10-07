@@ -797,7 +797,8 @@ function trace() {
           } else {
             const ct = Math.sqrt(k), R0 = Math.pow((n1 - n2) / (n1 + n2), 2);
             const cc = n1 > n2 ? ct : c, R = R0 + (1 - R0) * Math.pow(1 - cc, 5);
-            if (I2 * R > cut) stack.push([px, py, rx, ry, I2 * R, depth + 1, bi, nd]);
+            const Rk = n1 < n2 ? 0.5 : 1.0;
+            if (I2 * R * Rk > cut) stack.push([px, py, rx, ry, I2 * R * Rk, depth + 1, bi, nd]);
             if (I2 * (1 - R) > cut) {
               const f = eta * c - ct;
               stack.push([px, py, eta * dx + f * nx, eta * dy + f * ny, I2 * (1 - R), depth + 1, bi, nd]);
@@ -833,8 +834,7 @@ function trace() {
   drawBlurred(gx, lightCv, 12, 0.7);
   drawBlurred(gx, lightCv, 46, 0.85);
   drawBlurred(gx, light2Cv, Math.max(1.5, lastRayWidth * 0.8), 1.0);
-  drawBlurred(gx, light2Cv, Math.max(1.5, lastRayWidth * 0.8), 0.5);
-  drawBlurred(gx, light2Cv, 6, 0.5);
+  drawBlurred(gx, light2Cv, 6, 0.45);
   gx.globalAlpha = 1;
 }
 
