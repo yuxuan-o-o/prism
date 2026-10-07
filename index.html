@@ -473,7 +473,7 @@ const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 
 // ---------- state ----------
 const DEFAULTS = {
-  src: 'beam', width: 260, bright: 100, disp: 50,
+  src: 'beam', width: 260, bright: 100, disp: 60,
   mode: 'p', size: 38,
   lay: 'rings', ori: 'in', count: 18, gap: 92,
   bg: 'wall', spin: 'on',
@@ -820,9 +820,6 @@ function trace() {
   // Fold the softened secondary light into the main layer.
   lx.globalCompositeOperation = 'lighter';
   lx.globalAlpha = 1;
-  // Kept crisp on purpose: the fine threads are what keep the wavelengths
-  // apart and the colours alive. Any blur here melts them back into white.
-  lx.drawImage(light2Cv, 0, 0);
 
   gx.globalCompositeOperation = 'source-over';
   gx.globalAlpha = 1;
@@ -830,9 +827,14 @@ function trace() {
   gx.fillStyle = '#000';
   gx.fillRect(0, 0, SW, SH);
   gx.globalCompositeOperation = 'lighter';
+  // The beam gets the wide, hazy glow. The refracted light gets only a light
+  // touch: the wide blurs would smear its wavelengths back into white.
   drawBlurred(gx, lightCv, Math.max(2, lastRayWidth * 0.9), 0.9);
   drawBlurred(gx, lightCv, 12, 0.7);
   drawBlurred(gx, lightCv, 46, 0.85);
+  drawBlurred(gx, light2Cv, Math.max(1.5, lastRayWidth * 0.8), 1.0);
+  drawBlurred(gx, light2Cv, Math.max(1.5, lastRayWidth * 0.8), 0.5);
+  drawBlurred(gx, light2Cv, 6, 0.5);
   gx.globalAlpha = 1;
 }
 
