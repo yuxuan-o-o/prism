@@ -648,6 +648,44 @@ const gx = glowCv.getContext('2d');
 const sx = shadowCv.getContext('2d');
 const SHADOW_SCALE = 0.5;
 
+// Canvas `filter: blur()` is what makes the light soft. iOS Safari does not
+// support it (the property is silently ignored), which left the phone with
+// hard, stripy light. Detect that once and fall back to a shrink-and-enlarge
+// blur, which the GPU's bilinear sampling turns into a cheap, soft blur.
+const HAS_CANVAS_FILTER = (() => {
+  if (/[?&]nofilter=1/.test(location.search)) return false;
+  try {
+    const c = document.createElement('canvas').getContext('2d');
+    c.filter = 'blur(2px)';
+    return c.filter === 'blur(2px)';
+  } catch (_) { return false; }
+})();
+const shrinkCv = [document.createElement('canvas'), document.createElement('canvas')];
+const shrinkCx = shrinkCv.map(c => c.getContext('2d'));
+// Draws `src` onto `dst` blurred by `radius` (in src pixels), with `alpha`, additively.
+function drawBlurred(dst, src, radius, alpha) {
+  dst.globalAlpha = alpha;
+  if (HAS_CANVAS_FILTER || radius < 1) {
+    dst.filter = radius < 1 ? 'none' : 'blur(' + radius.toFixed(1) + 'px)';
+    dst.drawImage(src, 0, 0);
+    dst.filter = 'none';
+    return;
+  }
+  // Two shrink steps approximate a Gaussian far better than one.
+  const f = Math.max(1.5, radius / 1.4);
+  const w1 = Math.max(2, Math.round(src.width / Math.sqrt(f))), h1 = Math.max(2, Math.round(src.height / Math.sqrt(f)));
+  const w2 = Math.max(2, Math.round(src.width / f)), h2 = Math.max(2, Math.round(src.height / f));
+  const [a, b] = shrinkCv, [ax, bx] = shrinkCx;
+  if (a.width !== w1 || a.height !== h1) { a.width = w1; a.height = h1; }
+  if (b.width !== w2 || b.height !== h2) { b.width = w2; b.height = h2; }
+  ax.globalCompositeOperation = 'copy'; ax.imageSmoothingEnabled = true; ax.imageSmoothingQuality = 'high';
+  ax.drawImage(src, 0, 0, w1, h1);
+  bx.globalCompositeOperation = 'copy'; bx.imageSmoothingEnabled = true; bx.imageSmoothingQuality = 'high';
+  bx.drawImage(a, 0, 0, w2, h2);
+  dst.imageSmoothingEnabled = true; dst.imageSmoothingQuality = 'high';
+  dst.drawImage(b, 0, 0, src.width, src.height);
+}
+
 function trace() {
   lx.setTransform(1, 0, 0, 1, 0, 0);
   lx.globalCompositeOperation = 'source-over';
@@ -792,10 +830,10 @@ function trace() {
   gx.fillStyle = '#000';
   gx.fillRect(0, 0, SW, SH);
   gx.globalCompositeOperation = 'lighter';
-  gx.filter = 'blur(' + Math.max(2, lastRayWidth * 0.9).toFixed(1) + 'px)'; gx.globalAlpha = 0.9; gx.drawImage(lightCv, 0, 0);
-  gx.filter = 'blur(12px)'; gx.globalAlpha = 0.7; gx.drawImage(lightCv, 0, 0);
-  gx.filter = 'blur(46px)'; gx.globalAlpha = 0.85; gx.drawImage(lightCv, 0, 0);
-  gx.filter = 'none'; gx.globalAlpha = 1;
+  drawBlurred(gx, lightCv, Math.max(2, lastRayWidth * 0.9), 0.9);
+  drawBlurred(gx, lightCv, 12, 0.7);
+  drawBlurred(gx, lightCv, 46, 0.85);
+  gx.globalAlpha = 1;
 }
 
 function drawShadows() {
@@ -805,27 +843,44 @@ function drawShadows() {
   sx.globalAlpha = 1;
   sx.fillStyle = '#fff';
   sx.fillRect(0, 0, shadowCv.width, shadowCv.height);
-  sx.setTransform(k, 0, 0, k, 0, 0);
-  sx.filter = `blur(${Math.max(3, S.size * 0.3 * k)}px)`;
-  sx.fillStyle = 'rgba(70,60,52,0.42)';
+  const blurPx = Math.max(3, S.size * 0.3 * k);
+  const soft = !HAS_CANVAS_FILTER;
+  // Without canvas filters: draw the shapes small, then enlarge them (bilinear = soft edge).
+  const shrink = soft ? Math.max(2, blurPx / 1.2) : 1;
+  const g = soft ? shrinkCx[1] : sx, gcv = soft ? shrinkCv[1] : shadowCv;
+  if (soft) {
+    const w = Math.max(2, Math.round(shadowCv.width / shrink)), h = Math.max(2, Math.round(shadowCv.height / shrink));
+    if (gcv.width !== w || gcv.height !== h) { gcv.width = w; gcv.height = h; }
+    g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
+    g.fillStyle = '#fff'; g.fillRect(0, 0, w, h);
+  }
+  g.setTransform(k / shrink, 0, 0, k / shrink, 0, 0);
+  if (!soft) g.filter = `blur(${blurPx}px)`;
+  g.fillStyle = 'rgba(70,60,52,0.42)';
   const ox = S.size * 0.2, oy = S.size * 0.3;
   for (const it of items) {
-    sx.beginPath();
+    g.beginPath();
     if (it.type === 'p') {
-      sx.moveTo(it.v[0][0] + ox, it.v[0][1] + oy);
-      sx.lineTo(it.v[1][0] + ox, it.v[1][1] + oy);
-      sx.lineTo(it.v[2][0] + ox, it.v[2][1] + oy);
-      sx.closePath();
-      sx.fill();
+      g.moveTo(it.v[0][0] + ox, it.v[0][1] + oy);
+      g.lineTo(it.v[1][0] + ox, it.v[1][1] + oy);
+      g.lineTo(it.v[2][0] + ox, it.v[2][1] + oy);
+      g.closePath();
+      g.fill();
     } else {
-      sx.lineWidth = 6;
-      sx.strokeStyle = 'rgba(70,60,52,0.35)';
-      sx.moveTo(it.v[0][0] + ox, it.v[0][1] + oy);
-      sx.lineTo(it.v[1][0] + ox, it.v[1][1] + oy);
-      sx.stroke();
+      g.lineWidth = 6;
+      g.strokeStyle = 'rgba(70,60,52,0.35)';
+      g.moveTo(it.v[0][0] + ox, it.v[0][1] + oy);
+      g.lineTo(it.v[1][0] + ox, it.v[1][1] + oy);
+      g.stroke();
     }
   }
-  sx.filter = 'none';
+  if (soft) {
+    sx.setTransform(1, 0, 0, 1, 0, 0);
+    sx.imageSmoothingEnabled = true; sx.imageSmoothingQuality = 'high';
+    sx.drawImage(gcv, 0, 0, shadowCv.width, shadowCv.height);
+  } else {
+    g.filter = 'none';
+  }
 }
 
 // ---------- three.js scene ----------
