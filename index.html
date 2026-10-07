@@ -735,7 +735,7 @@ function trace() {
   lx2.fillRect(0, 0, SW, SH);
   lx2.globalCompositeOperation = 'lighter';
   lx2.lineCap = 'butt';
-  const aBase = bright * 0.42 / (cover * SUM);
+  const aBase = bright * 0.38 / (cover * SUM);
   const grating = 2600 - 1500 * disp, cut = 0.05, CHUNK = 120, FADE = 900, FAR = 1500;
   let budget = 160000;
   const ne = edges.length;
@@ -768,8 +768,9 @@ function trace() {
         for (let c = 0; c < nc; c++) {
           const t0 = tt * c / nc, t1 = tt * (c + 1) / nc;
           const mid = dist + (t0 + t1) / 2;
-          // Ease in over the first stretch so the beam has no hard starting edge.
-          const al = I * aBase * Math.exp(-mid / FADE) * Math.min(1, 0.15 + mid / 140);
+          // A short ease-in at the source; a long one made the beam peak just
+          // before the first thing it hit, which read as a bright blob there.
+          const al = I * aBase * Math.exp(-mid / FADE) * Math.min(1, 0.6 + mid / 60);
           if (al < 0.003) break;
           const x0 = ox + dx * t0, y0 = oy + dy * t0;
           if ((x0 < -20 && dx < 0) || (x0 > SW + 20 && dx > 0) || (y0 < -20 && dy < 0) || (y0 > SH + 20 && dy > 0)) break;
