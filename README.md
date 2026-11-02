@@ -19,7 +19,9 @@ from a CDN.
 | | |
 | --- | --- |
 | Scroll (wheel or two fingers) | Turn the light. With a point light, turn the pattern. |
-| Drag the dot | Move the light source |
+| Drag the wall | Turn the pattern by hand |
+| On a phone | The controls open from the panel button and close with a swipe down; the Direction slider or a two-finger twist turns the light |
+| Drag the bar (or the dot, for a point light) | Move the light source |
 | Light | Beam or point, width, brightness, dispersion |
 | Element | Prism or diffraction film |
 | Pattern | Rings, circle, spiral, grid, hex; which way the prisms face; add or remove a ring |
@@ -53,8 +55,8 @@ set Dispersion to 0 for something close to it.
 
 ## Credits
 
-The glass shading, the rounded prism mesh and the studio environment are
-ported from the prism on [vgpu.sh](https://vgpu.sh) by Vercel
+The glass shading, the rounded prism mesh, the studio environment and the
+plaster wall are ported from the prism on [vgpu.sh](https://vgpu.sh) by Vercel
 ([vercel-labs/vgpu](https://github.com/vercel-labs/vgpu), MIT). See
 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) for what came from where.
 

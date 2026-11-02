@@ -1,16 +1,23 @@
 <!doctype html>
+<!--
+  prism — light through patterns of glass
+  https://github.com/yuxuan-o-o/prism · MIT License · (c) 2026 Yuxuan
+  Parts of the glass and wall rendering are ported from vercel-labs/vgpu
+  (MIT, (c) Vercel, Inc.); see THIRD-PARTY-NOTICES.md.
+-->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>prism — light through patterns of glass</title>
 <meta name="description" content="A small light toy. White light goes through rings of glass prisms or diffraction film and comes out as colour on a plaster wall. Turn the light, add a ring, let it slowly spin.">
-<meta name="theme-color" content="#f4f3f1" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#070707" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#fafafa" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <link rel="canonical" href="https://light-prism-film.vercel.app/">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/geist@5.3.0/400.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/geist@5.3.0/500.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/geist-mono@5.3.0/500.css">
+<link rel="preload" as="font" type="font/woff2" crossorigin href="https://cdn.jsdelivr.net/npm/geist@1.9.0/dist/fonts/geist-serif/GeistSerif-Triangle.woff2">
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
@@ -41,6 +48,14 @@
   } catch (e) {}
 </script>
 <style>
+  /* The wordmark is Geist Serif in its Triangle variant: the dot on the i is a tiny prism. */
+  @font-face {
+    font-family: "Geist Serif Triangle";
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url("https://cdn.jsdelivr.net/npm/geist@1.9.0/dist/fonts/geist-serif/GeistSerif-Triangle.woff2") format("woff2");
+  }
   /* Colour and type follow Vercel's Geist: its gray scale, 6/8/12px radii, Geist Sans + Mono. */
   :root {
     --bg: #000000;
@@ -90,7 +105,7 @@
   }
 
   .top { display: flex; align-items: center; gap: 18px; }
-  .logo { font: 500 20px/1 "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: -0.02em; }
+  .logo { font: 400 24px/1 "Geist Serif Triangle", "Geist Mono", Georgia, serif; letter-spacing: 0; }
   .top .right { margin-left: auto; display: flex; gap: 4px; color: var(--muted); }
   .top .right button {
     display: inline-flex; align-items: center; justify-content: center;

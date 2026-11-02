@@ -12,6 +12,8 @@ under `apps/docs/app/[lang]/(home)/components/prism-background/`.
 | Glass fragment shader: interior trace, Fresnel, absorption, panel highlight | `pipelines/shared/glass/glass.wgsl`, `glass-common.wgsl` |
 | Glass accent: inner bands and bevel rims | `pipelines/light/passes/glass-accent/glass-accent.wgsl` |
 | `studio()` environment | `environment/environment.wgsl` |
+| `plasterTexture()` and the wall's normal-lit relief | `pipelines/light/assets/generate-wall.ts`, `pipelines/light/passes/wall/wall-common.wgsl`, `wall-normal.wgsl` |
+| Dark-room glass recipe (blue absorption, stronger reflection) and the idea of light glowing inside the solid | `types.ts` (dark glass controls), `pipelines/dark/passes/light/light.wgsl` |
 
 The ports were translated from WGSL/WebGPU to GLSL/WebGL and changed to work
 on many instanced prisms instead of one fixed prism.
@@ -47,7 +49,8 @@ Loaded at runtime from jsDelivr. MIT License, Copyright (c) 2010-2024 three.js a
 ## Geist (fonts)
 
 Geist Sans and Geist Mono by Vercel, loaded from jsDelivr via `@fontsource/geist`
-and `@fontsource/geist-mono`. SIL Open Font License 1.1. The interface also
+and `@fontsource/geist-mono`; the wordmark is Geist Serif (Triangle variant) from
+the `geist` package. SIL Open Font License 1.1. The interface also
 borrows Geist's gray scale and corner radii; those are design choices, not code.
 
 ## Lucide
